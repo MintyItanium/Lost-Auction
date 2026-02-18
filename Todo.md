@@ -1,7 +1,5 @@
 # Auction House Plugin - Completed Features
 
-## ✅ Completed Features
-
 ### Core Auction System
 - [x] Fixed price auctions (buy-it-now, because some people want that in a plugin like this... for some reason.)
 - [x] Bidding auctions with minimum starting bids
