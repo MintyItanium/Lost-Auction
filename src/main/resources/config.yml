@@ -1,0 +1,4 @@
+default-duration-hours: 24
+check-interval-seconds: 60
+anvil-bid-min-increment: 1.0
+max-listings-per-player: 5

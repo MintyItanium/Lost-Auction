@@ -1,0 +1,23 @@
+name: BetafishAuction
+main: com.betafish.auctionhouse.BetafishAuction
+version: 0.0.2
+api-version: 1.21
+author: Betafish
+depend: [Vault]
+commands:
+  auction:
+    description: Open auction GUI or create sale/auction
+    usage: /auction [sell|auction] [price] | /auction history | /auction allhistory
+  auctionadmin:
+    description: Administrative auction commands (force end)
+    usage: /auctionadmin end <auctionId>
+permissions:
+  beta.auction:
+    description: Allows using the auction house
+    default: true
+  beta.auction.admin:
+    description: Administrative auction permission
+    default: op
+  beta.auction.fullhistory:
+    description: Allows viewing all auction history
+    default: op

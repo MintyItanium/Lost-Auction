@@ -1,0 +1,25 @@
+categories:
+  general:
+    name: "General"
+    item: "CHEST"
+  tools:
+    name: "Tools"
+    item: "IRON_PICKAXE"
+  weapons:
+    name: "Weapons"
+    item: "IRON_SWORD"
+  armor:
+    name: "Armor"
+    item: "IRON_CHESTPLATE"
+  blocks:
+    name: "Blocks"
+    item: "GRASS_BLOCK"
+  food:
+    name: "Food"
+    item: "BREAD"
+  potions:
+    name: "Potions and Effects"
+    item: "POTION"
+  other:
+    name: "Other"
+    item: "BARRIER"
