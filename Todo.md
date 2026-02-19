@@ -72,8 +72,3 @@
 - [ ] Set up CI/CD pipeline (GitHub Actions)
 - [ ] Code documentation improvements
 - [ ] Performance optimizations
-
-## 📋 Version History
-
-- **v0.0.2**: Complete auction system with search, filtering, categories, and admin tools
-- **v0.0.1**: Basic auction functionality
