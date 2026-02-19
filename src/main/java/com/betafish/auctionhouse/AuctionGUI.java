@@ -778,7 +778,7 @@ public class AuctionGUI implements Listener {
             }
         }
         int slot = e.getSlot();
-        if (slot < 0 || slot >= 50) return; // 50-53 are buttons
+        if (slot < 0 || slot >= 50) return; // 50-53 are buttons, this should be configurable in the future.
         List<Auction> auctionList = new ArrayList<>(manager.listAuctions());
         if (slot >= auctionList.size()) return;
         Auction a = auctionList.get(slot);

@@ -42,6 +42,7 @@
 - [x] Separate history file (history.yml)
 - [x] Automatic data saving/loading
 - [x] Auction serialization with categories
+- [/] Make history less buggy
 
 ### Advanced Features
 - [x] Customizable category display items (categories.yml)

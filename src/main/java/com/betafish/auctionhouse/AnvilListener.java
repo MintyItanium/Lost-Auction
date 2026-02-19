@@ -43,11 +43,11 @@ public class AnvilListener implements Listener {
     }
 
     public static void openAnvilForSearch(Player p, AuctionManager manager) {
-        p.sendMessage("\n\u00A76Auction House Search\n\u00A7ePlease enter the item name to search for in chat. \n");
+        p.sendMessage("\n\u00A76Auction House Search\n\u00A7ePlease enter the item name in chat. \n");
         p.closeInventory();
         awaitingSearch.put(p, true);
     }
-
+// Todo: Figure out how to do it without chat.
     public static void openAnvilForListing(Player p, ItemStack item, AuctionManager manager, Auction.Type type, String category) {
         p.sendMessage("\n\u00A76Auction House\n\u00A7ePlease enter the price in chat. \n");
         p.closeInventory();
@@ -105,7 +105,7 @@ public class AnvilListener implements Listener {
                 String raw = msg.replaceAll("[^0-9\\.]", "");
                 double price;
                 try { price = Double.parseDouble(raw); } catch (Exception ex) {
-                    p.sendMessage("Invalid price");
+                    p.sendMessage("Invalid price, listing cancelled.");
                     PendingListing pl = awaitingListing.remove(p);
                     if (pl != null) {
                         // return item to player as pending delivery (safe)

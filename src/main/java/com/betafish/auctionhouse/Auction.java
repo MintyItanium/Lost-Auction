@@ -17,7 +17,7 @@ public class Auction implements ConfigurationSerializable {
     public double startingPrice;
     public double currentBid;
     public UUID currentBidder;
-    public long endTime; // epoch millis
+    public long endTime;
     public String category;
 
     public Auction() {}
