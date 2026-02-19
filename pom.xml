@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.betafish</groupId>
     <artifactId>betafish-auction</artifactId>
-    <version>0.0.2</version>
+    <version>0.0.3</version>
     <name>BetafishAuction</name>
     <description>a crappy, but workking auction house plugin.</description>
     <url>https://github.com/MintyItanium/Lost-Auction</url>
