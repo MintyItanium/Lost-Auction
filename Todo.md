@@ -70,6 +70,6 @@
 ### Development Tasks
 - [ ] Add unit tests
 - [ ] Add integration tests
-- [ ] Set up CI/CD pipeline (GitHub Actions)
+- [X] Speedup Github Auctions
 - [ ] Code documentation improvements
 - [ ] Performance optimizations
