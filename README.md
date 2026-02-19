@@ -18,7 +18,7 @@ Use **JDK 21** To build.
 mvn clean package
 ```
 
-Place the `target/betafish-auction-0.0.2.jar` into your server `plugins/` folder, along with Vault and EssentialsX, then start the server.
+Place the `target/betafish-auction-0.0.3.jar` into your server `plugins/` folder, along with Vault and EssentialsX, then start the server.
 
 ## Features
 
