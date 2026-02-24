@@ -72,4 +72,4 @@
 - [ ] Add integration tests
 - [X] Speedup Github Auctions
 - [ ] Code documentation improvements
-- [ ] Performance optimizations
+- [X] Performance optimizations
