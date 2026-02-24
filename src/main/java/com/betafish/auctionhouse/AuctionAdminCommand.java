@@ -21,7 +21,7 @@ public class AuctionAdminCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         Player p = (Player) sender;
-        if (!p.hasPermission("beta.auction.admin")) {
+        if (!p.hasPermission("lost.auction.admin")) {
             p.sendMessage("You do not have permission to use this command.");
             return true;
         }
@@ -51,7 +51,7 @@ public class AuctionAdminCommand implements CommandExecutor, TabCompleter {
         }
 
         Player player = (Player) sender;
-        if (!player.hasPermission("beta.auction.admin")) {
+        if (!player.hasPermission("lost.auction.admin")) {
             return completions;
         }
 

@@ -22,7 +22,7 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         Player p = (Player) sender;
-        if (!p.hasPermission("beta.auction")) { 
+        if (!p.hasPermission("lost.auction")) {
             p.sendMessage("You do not have permission to use the auction house.");
             return true;
         }
@@ -38,7 +38,7 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
                 AuctionGUI.openHistory(p, manager);
                 return true;
             } else if (subcommand.equals("allhistory")) {
-                if (!p.hasPermission("beta.auction.fullhistory")) {
+                if (!p.hasPermission("lost.auction.fullhistory")) {
                     p.sendMessage("You do not have permission to view all auction history.");
                     return true;
                 }
@@ -103,7 +103,7 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
             if ("sell".startsWith(partial)) completions.add("sell");
             if ("auction".startsWith(partial)) completions.add("auction");
             if ("history".startsWith(partial)) completions.add("history");
-            if ("allhistory".startsWith(partial) && player.hasPermission("beta.auction.fullhistory")) {
+            if ("allhistory".startsWith(partial) && player.hasPermission("lost.auction.fullhistory")) {
                 completions.add("allhistory");
             }
         }

@@ -6,8 +6,8 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class BetafishAuction extends JavaPlugin {
-    private static BetafishAuction instance;
+public class LostAuction extends JavaPlugin {
+    private static LostAuction instance;
     private Economy econ;
     private AuctionManager auctionManager;
 
@@ -39,13 +39,13 @@ public class BetafishAuction extends JavaPlugin {
         int interval = getConfig().getInt("check-interval-seconds", 60);
         Bukkit.getScheduler().runTaskTimer(this, () -> auctionManager.processExpired(), 20L * interval, 20L * interval);
 
-        getLogger().info("BetafishAuction enabled");
+        getLogger().info("LostAuction enabled");
     }
 
     @Override
     public void onDisable() {
         if (auctionManager != null) auctionManager.save();
-        getLogger().info("BetafishAuction disabled");
+        getLogger().info("LostAuction disabled");
     }
 
     private boolean setupEconomy() {
@@ -55,7 +55,7 @@ public class BetafishAuction extends JavaPlugin {
         return econ != null;
     }
 
-    public static BetafishAuction getInstance() {
+    public static LostAuction getInstance() {
         return instance;
     }
 

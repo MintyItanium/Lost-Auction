@@ -1,5 +1,5 @@
-name: BetafishAuction
-main: com.betafish.auctionhouse.BetafishAuction
+name: LostAuction
+main: com.betafish.auctionhouse.LostAuction
 version: 0.1
 api-version: 1.21
 author: Betafish
@@ -12,12 +12,12 @@ commands:
     description: Administrative auction commands (force end)
     usage: /auctionadmin end <auctionId>
 permissions:
-  beta.auction:
+  lost.auction:
     description: Allows using the auction house
     default: true
-  beta.auction.admin:
+  lost.auction.admin:
     description: Administrative auction permission
     default: op
-  beta.auction.fullhistory:
+  lost.auction.fullhistory:
     description: Allows viewing all auction history
     default: op
