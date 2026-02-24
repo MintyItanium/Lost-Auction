@@ -60,7 +60,7 @@ public class AnvilListener implements Listener {
         if (!(e.getWhoClicked() instanceof Player)) return;
         e.setCancelled(true);
         Player p = (Player) e.getWhoClicked();
-        if (!p.hasPermission("beta.auction")) { p.sendMessage("You do not have permission to use the auction house."); p.closeInventory(); return; }
+        if (!p.hasPermission("lost.auction")) { p.sendMessage("You do not have permission to use the auction house."); p.closeInventory(); return; }
         ItemStack result = e.getCurrentItem();
         if (result == null || !result.hasItemMeta()) return;
         String name = result.getItemMeta().getDisplayName();

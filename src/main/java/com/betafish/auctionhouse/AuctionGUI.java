@@ -37,7 +37,7 @@ public class AuctionGUI implements Listener {
     }
 
     public static void openMain(Player p, AuctionManager manager) {
-        if (!p.hasPermission("beta.auction")) {
+        if (!p.hasPermission("lost.auction")) {
             p.sendMessage("You do not have permission to use the auction house.");
             return;
         }
@@ -354,7 +354,7 @@ public class AuctionGUI implements Listener {
     }
 
     public static void openHistory(Player p, AuctionManager manager) {
-        if (!p.hasPermission("beta.auction")) {
+        if (!p.hasPermission("lost.auction")) {
             p.sendMessage("You do not have permission to use the auction house.");
             return;
         }
@@ -439,7 +439,7 @@ public class AuctionGUI implements Listener {
         e.setCancelled(true);
         if (!(e.getWhoClicked() instanceof Player)) return;
         Player p = (Player) e.getWhoClicked();
-        if (!p.hasPermission("beta.auction")) { p.sendMessage("You do not have permission to use the auction house. :|"); p.closeInventory(); return; }
+        if (!p.hasPermission("lost.auction")) { p.sendMessage("You do not have permission to use the auction house. :|"); p.closeInventory(); return; }
 
         ItemStack clicked = e.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
@@ -761,7 +761,7 @@ public class AuctionGUI implements Listener {
         e.setCancelled(true);
         if (!(e.getWhoClicked() instanceof Player)) return;
         Player p = (Player) e.getWhoClicked();
-        if (!p.hasPermission("beta.auction")) { p.sendMessage("You do not have permission to use the auction house."); p.closeInventory(); return; }
+        if (!p.hasPermission("lost.auction")) { p.sendMessage("You do not have permission to use the auction house."); p.closeInventory(); return; }
         ItemStack clicked = e.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
         ItemMeta clickedMeta = clicked.getItemMeta();
@@ -840,7 +840,7 @@ public class AuctionGUI implements Listener {
         e.setCancelled(true);
         if (!(e.getWhoClicked() instanceof Player)) return;
         Player p = (Player) e.getWhoClicked();
-        if (!p.hasPermission("beta.auction")) { p.sendMessage("You do not have permission to use the auction house."); p.closeInventory(); return; }
+        if (!p.hasPermission("lost.auction")) { p.sendMessage("You do not have permission to use the auction house."); p.closeInventory(); return; }
 
         if (e.getView().getTitle().equals("Select Item to List")) {
             ItemStack clicked = e.getCurrentItem();
@@ -898,7 +898,7 @@ public class AuctionGUI implements Listener {
         e.setCancelled(true);
         if (!(e.getWhoClicked() instanceof Player)) return;
         Player p = (Player) e.getWhoClicked();
-        if (!p.hasPermission("beta.auction.admin")) { p.sendMessage("You do not have permission to use the auction admin GUI."); p.closeInventory(); return; }
+        if (!p.hasPermission("lost.auction.admin")) { p.sendMessage("You do not have permission to use the auction admin GUI."); p.closeInventory(); return; }
         ItemStack clicked = e.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
         List<String> lore = clicked.getItemMeta() == null ? null : clicked.getItemMeta().getLore();

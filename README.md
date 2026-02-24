@@ -125,6 +125,6 @@ categories:
 
 ## Permissions
 
-- `beta.auction`: Use the auction house (default: all players)
-- `beta.auction.admin`: Administrative commands (default: operators)
-- `beta.auction.fullhistory`: View all auction history (default: operators)
+- `lost.auction`: Use the auction house (default: all players)
+- `lost.auction.admin`: Administrative commands (default: operators)
+- `lost.auction.fullhistory`: View all auction history (default: operators)
