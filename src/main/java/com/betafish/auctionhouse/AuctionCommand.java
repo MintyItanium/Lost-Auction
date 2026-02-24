@@ -7,23 +7,27 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import net.kyori.adventure.text.minimessage.MiniMessage;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class AuctionCommand implements CommandExecutor, TabCompleter {
     private final AuctionManager manager;
 
+    MiniMessage mm = MiniMessage.miniMessage();
+
     public AuctionCommand(AuctionManager m) { this.manager = m; }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage("Only players may use this command, I'm a fish, not a magic fish.");
+            sender.sendMessage(mm.deserialize("<red>Only players may use this command, I'm a fish, not a magic fish."));
             return true;
         }
         Player p = (Player) sender;
         if (!p.hasPermission("lost.auction")) {
-            p.sendMessage("You do not have permission to use the auction house.");
+            p.sendMessage(mm.deserialize("<red>You do not have permission to use the auction house."));
             return true;
         }
         if (args.length == 0) {
@@ -39,7 +43,7 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
                 return true;
             } else if (subcommand.equals("allhistory")) {
                 if (!p.hasPermission("lost.auction.fullhistory")) {
-                    p.sendMessage("You do not have permission to view all auction history.");
+                    p.sendMessage(mm.deserialize("<red>You do not have permission to view all auction history."));
                     return true;
                 }
                 AuctionGUI.openAllHistory(p, manager);
@@ -50,10 +54,10 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
         if (args.length >= 2) {
             String mode = args[0].toLowerCase();
             double price;
-            try { price = Double.parseDouble(args[1]); } catch (Exception e) { p.sendMessage("You can't give things away for free."); return true; }
+            try { price = Double.parseDouble(args[1]); } catch (Exception e) { p.sendMessage(mm.deserialize("<red>You can't give things away for free.")); return true; }
 
             ItemStack inHand = p.getInventory().getItemInMainHand();
-            if (inHand == null || inHand.getType().isAir()) { p.sendMessage("Hold an item in your main hand to list it."); return true; }
+            if (inHand == null || inHand.getType().isAir()) { p.sendMessage(mm.deserialize("<green>Hold an item in your main hand to list it.")); return true; }
 
             long duration = manager.getPlugin().getConfig().getLong("default-duration-hours", 24) * 3600L * 1000L; // I'm not sure if this math works or not
 
@@ -63,10 +67,10 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
                 p.getInventory().setItemInMainHand(null);
                 try {
                     manager.createAuction(p.getUniqueId(), inHand, Auction.Type.FIXED, price, duration);
-                    p.sendMessage("[Auction] Item listed for sale at " + price);
+                    p.sendMessage(mm.deserialize("<green>[Auction] <yellow>Item listed for sale at <green>" + price));
                 } catch (IllegalStateException e) {
                     p.getInventory().setItemInMainHand(inHand); // return item
-                    p.sendMessage("[Auction] " + e.getMessage());
+                    p.sendMessage(mm.deserialize("<red>[Auction] " + e.getMessage()));
                 }
                 return true;
             } else if (mode.equals("auction")) {
@@ -74,16 +78,16 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
                 p.getInventory().setItemInMainHand(null);
                 try {
                     manager.createAuction(p.getUniqueId(), inHand, Auction.Type.AUCTION, price, duration);
-                    p.sendMessage("[Auction] Item listed for auction starting at " + price);
+                    p.sendMessage(mm.deserialize("<green>[Auction] <yellow>Item listed for auction starting at <green>" + price));
                 } catch (IllegalStateException e) {
                     p.getInventory().setItemInMainHand(inHand); // return item
-                    p.sendMessage("[Auction] " + e.getMessage());
+                    p.sendMessage(mm.deserialize("<red>[Auction] " + e.getMessage()));
                 }
                 return true;
             }
         }
 
-        p.sendMessage("Usage: /auction OR /auction sell <price> OR /auction auction <startingPrice> OR /auction history OR /auction allhistory");
+        p.sendMessage(mm.deserialize("<yellow>Usage: <green>/auction <white>OR <green>/auction sell <price><white> OR <green>/auction auction <startingPrice><white> OR <green>/auction history <white>OR <green>/auction allhistory"));
         return true;
     }
 
