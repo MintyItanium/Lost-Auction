@@ -130,7 +130,7 @@ public class AnvilListener implements Listener {
 
             // process on main thread
             Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
-                AuctionGUI.openSearchResults(p, manager, searchTerm);
+                AuctionGUI.openSearchResults(p, manager, searchTerm, 0);
             });
             return;
         }
