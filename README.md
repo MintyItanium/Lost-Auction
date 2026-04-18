@@ -1,19 +1,19 @@
 # Auction House
 
-Simple Auction House plugin for Paper 1.21.x
+Simple Auction House plugin for Paper 26.1
 
 *This Plugin Was Made for a project, the project wasn't completed, but it works without the other plugins.*
 
 
 ## Requirements
 
-- Paper server (1.21.x) or ShreddedPaper 1.21.11
+- Paper server (26.1) or ShreddedPaper 26.1
 - Vault plugin
 - EssentialsX
-- Java 21+
+- Java 25+
 
 ## Building and Testing
-Use **JDK 21** To build.
+Use **JDK 25** To build.
 ```bash
 mvn clean package
 ```
