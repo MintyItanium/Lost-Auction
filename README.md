@@ -2,8 +2,6 @@
 
 Simple Auction House plugin for Paper 26.1
 
-*This Plugin Was Made for a project, the project wasn't completed, but it works without the other plugins.*
-
 
 ## Requirements
 
