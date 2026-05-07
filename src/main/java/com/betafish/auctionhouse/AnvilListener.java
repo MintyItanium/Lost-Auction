@@ -37,6 +37,11 @@ public class AnvilListener implements Listener {
     }
 
     public static void openAnvilForBid(Player p, Auction a, AuctionManager manager) {
+        if (a.seller.equals(p.getUniqueId())) {
+            p.sendMessage(ChatColor.RED + "[Auction] You cannot bid on your own listing.");
+            p.closeInventory();
+            return;
+        }
         p.sendMessage("\n\u00A76Auction House\n\u00A7ePlease enter your bid amount in chat. \n");
         p.closeInventory();
         awaitingAuction.put(p, a.id);
