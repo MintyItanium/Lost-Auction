@@ -8,6 +8,7 @@ commands:
   auction:
     description: Open auction GUI or create sale/auction
     usage: /auction [sell|auction] [price] | /auction history | /auction allhistory
+    aliases: [ah, auc]
   auctionadmin:
     description: Administrative auction commands (force end)
     usage: /auctionadmin end <auctionId>
