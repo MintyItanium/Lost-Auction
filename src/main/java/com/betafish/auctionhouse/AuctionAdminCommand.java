@@ -7,6 +7,7 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -26,7 +27,7 @@ public class AuctionAdminCommand implements CommandExecutor, TabCompleter {
         }
         Player p = (Player) sender;
         if (!p.hasPermission("lost.auction.admin")) {
-            p.sendMessage("You do not have permission to use this command.");
+            sender.sendMessage("You do not have permission to use this command.");
             return true;
         }
 
@@ -76,7 +77,7 @@ public class AuctionAdminCommand implements CommandExecutor, TabCompleter {
             if ("end".startsWith(partial)) completions.add("end");
         } else if (args.length == 2 && args[0] != null && args[0].equalsIgnoreCase("end")) {
             String partial = args[1] == null ? "" : args[1].toLowerCase();
-            List<Auction> auctions = manager.listAuctions();
+            Collection<Auction> auctions = manager.listAuctions();
             if (auctions == null || auctions.isEmpty()) return completions;
             for (Auction a : auctions) {
                 if (a == null) continue;
@@ -88,7 +89,7 @@ public class AuctionAdminCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        // Bukkit expects unmodifiable list sometimes; return a safe copy
+        
         return Collections.unmodifiableList(completions);
     }
 }
