@@ -26,6 +26,18 @@ public class AuctionGUI implements Listener {
 
     public AuctionGUI(AuctionManager m) { this.manager = m; }
 
+    private static String formatMaterialName(Material material) {
+        String[] words = material.name().split("_");
+        StringBuilder sb = new StringBuilder();
+        for (String word : words) {
+            if (word.isEmpty()) continue;
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(Character.toUpperCase(word.charAt(0)));
+            if (word.length() > 1) sb.append(word.substring(1).toLowerCase());
+        }
+        return sb.toString();
+    }
+
     private static String formatDuration(long millis) {
         if (millis <= 0) return "Ended";
         long secs = millis / 1000;
@@ -255,7 +267,7 @@ public class AuctionGUI implements Listener {
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             meta.setLore(lore);
-            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             meta.setDisplayName(ChatColor.GREEN + itemName);
             item.setItemMeta(meta);
             inv.setItem(row * 9 + col, item);
@@ -497,7 +509,7 @@ public class AuctionGUI implements Listener {
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             meta.setLore(lore);
-            String displayName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
+            String displayName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             meta.setDisplayName(ChatColor.GREEN + displayName);
             item.setItemMeta(meta);
             inv.setItem(slot++, item);
@@ -609,7 +621,7 @@ public class AuctionGUI implements Listener {
             String role = a.seller.equals(p.getUniqueId()) ? "Seller" : "Bidder";
             lore.add("Your Role: " + role);
             meta.setLore(lore);
-            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             ChatColor color = isActive ? ChatColor.GREEN : ChatColor.YELLOW;
             meta.setDisplayName(color + itemName);
             item.setItemMeta(meta);
@@ -677,7 +689,7 @@ public class AuctionGUI implements Listener {
             }
 
             meta.setLore(lore);
-            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             ChatColor color = isActive ? ChatColor.GREEN : ChatColor.GOLD;
             meta.setDisplayName(color + itemName);
             item.setItemMeta(meta);
@@ -749,7 +761,7 @@ public class AuctionGUI implements Listener {
                 lore.add(ChatColor.YELLOW + "Current bidder will be refunded");
             }
             meta.setLore(lore);
-            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             meta.setDisplayName(ChatColor.GREEN + itemName);
             item.setItemMeta(meta);
             inv.setItem(row * 9 + col, item);
@@ -1005,7 +1017,7 @@ public class AuctionGUI implements Listener {
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             meta.setLore(lore);
-            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             meta.setDisplayName(ChatColor.GREEN + itemName);
             item.setItemMeta(meta);
             inv.setItem(slot++, item);
@@ -1235,7 +1247,7 @@ public class AuctionGUI implements Listener {
             lore.add("Ends in: " + formatDuration(remaining));
             lore.add("Category: " + a.category);
             meta.setLore(lore);
-            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             meta.setDisplayName(ChatColor.GREEN + itemName);
             item.setItemMeta(meta);
             inv.setItem(row * 9 + col, item);
