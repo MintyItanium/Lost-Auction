@@ -49,7 +49,7 @@ Place the jar file in "/target" into your server `plugins/` folder, along with V
 
 ## Usage
 
-### Player Commands
+### Commands
 - `/auction` — Open the auction house GUI
 - `/auction sell <price>` — Put item in your hand up for fixed-price sale
 - `/auction auction <starting_price>` — Put item in your hand up for bid-based auction
