@@ -39,14 +39,14 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             String subcommand = args[0].toLowerCase();
             if (subcommand.equals("history")) {
-                AuctionGUI.openHistory(p, manager);
+                AuctionGUI.openHistory(p, manager, 0);
                 return true;
             } else if (subcommand.equals("allhistory")) {
                 if (!p.hasPermission("lost.auction.fullhistory")) {
                     p.sendMessage(mm.deserialize("<red>You do not have permission to view all auction history."));
                     return true;
                 }
-                AuctionGUI.openAllHistory(p, manager);
+                AuctionGUI.openAllHistory(p, manager, 0);
                 return true;
             }
         }
