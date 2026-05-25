@@ -6,6 +6,7 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -159,6 +160,18 @@ public class AuctionManager {
         save();
     }
 
+    public static ItemStack stripCategoryLore(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return item;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null || !meta.hasLore()) return item;
+        List<String> lore = meta.getLore();
+        if (lore == null) return item;
+        lore.removeIf(line -> line.startsWith("CATEGORY:"));
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
     public void deliverPending(Player p) {
         List<ItemStack> items = pendingDeliveries.remove(p.getUniqueId());
         if (items != null && !items.isEmpty()) {
@@ -209,10 +222,10 @@ public class AuctionManager {
             // fixed price expired: return to seller
             Player seller = Bukkit.getPlayer(a.seller);
             if (seller != null && seller.isOnline()) {
-                seller.getInventory().addItem(a.item);
+                seller.getInventory().addItem(stripCategoryLore(a.item));
                 seller.sendMessage("[Auction] Your listing expired and item was returned.");
             } else {
-                addPendingDelivery(a.seller, a.item);
+                addPendingDelivery(a.seller, stripCategoryLore(a.item));
             }
         } else {
             // auction - if has bid, winner already precharged
@@ -220,10 +233,10 @@ public class AuctionManager {
                 // give item to winner
                 Player winner = Bukkit.getPlayer(a.currentBidder);
                 if (winner != null && winner.isOnline()) {
-                    winner.getInventory().addItem(a.item);
+                    winner.getInventory().addItem(stripCategoryLore(a.item));
                     winner.sendMessage("[Auction] You won auction " + a.id + " and received your item.");
                 } else {
-                    addPendingDelivery(a.currentBidder, a.item);
+                    addPendingDelivery(a.currentBidder, stripCategoryLore(a.item));
                 }
                 // pay seller
                 econ.depositPlayer(Bukkit.getOfflinePlayer(a.seller), a.currentBid);
@@ -232,10 +245,10 @@ public class AuctionManager {
                 // no bids, return to seller
                 Player seller = Bukkit.getPlayer(a.seller);
                 if (seller != null && seller.isOnline()) {
-                    seller.getInventory().addItem(a.item);
+                    seller.getInventory().addItem(stripCategoryLore(a.item));
                     seller.sendMessage("[Auction] Your auction ended with no bids; item returned.");
                 } else {
-                    addPendingDelivery(a.seller, a.item);
+                    addPendingDelivery(a.seller, stripCategoryLore(a.item));
                 }
             }
         }

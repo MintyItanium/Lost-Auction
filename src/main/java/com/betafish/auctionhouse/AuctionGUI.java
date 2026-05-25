@@ -836,7 +836,7 @@ public class AuctionGUI implements Listener {
             }
         }
 
-        HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(a.item);
+        HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
         for (ItemStack drop : overflow.values()) {
             p.getWorld().dropItemNaturally(p.getLocation(), drop);
         }
@@ -921,7 +921,7 @@ public class AuctionGUI implements Listener {
             if (!manager.getEconomy().has(p, price)) { p.sendMessage("You cannot afford this item."); return; }
             manager.getEconomy().withdrawPlayer(p, price);
             manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
-            if (p.isOnline()) p.getInventory().addItem(a.item);
+            if (p.isOnline()) p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
             manager.removeAuction(a.id);
             p.sendMessage("[Auction] You bought item for " + price);
         } else {
@@ -1099,7 +1099,7 @@ public class AuctionGUI implements Listener {
             manager.getEconomy().withdrawPlayer(p, price);
             manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
             // deliver item
-            if (p.isOnline()) p.getInventory().addItem(a.item);
+            if (p.isOnline()) p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
             manager.removeAuction(a.id);
             p.sendMessage("[Auction] You bought item for " + price);
         } else {
@@ -1174,7 +1174,7 @@ public class AuctionGUI implements Listener {
             manager.getEconomy().withdrawPlayer(p, price);
             manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
             // deliver item
-            if (p.isOnline()) p.getInventory().addItem(a.item);
+            if (p.isOnline()) p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
             manager.removeAuction(a.id);
             p.sendMessage("[Auction] You bought item for " + price);
         } else {
@@ -1331,7 +1331,7 @@ public class AuctionGUI implements Listener {
             manager.getEconomy().withdrawPlayer(p, price);
             manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
             // deliver item
-            if (p.isOnline()) p.getInventory().addItem(a.item);
+            if (p.isOnline()) p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
             manager.removeAuction(a.id);
             p.sendMessage("[Auction] You bought item for " + price);
         } else {
@@ -1438,7 +1438,7 @@ public class AuctionGUI implements Listener {
             pendingListingType.remove(p);
             pendingPrice.remove(p);
             if (item != null) {
-                HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(item);
+                HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(AuctionManager.stripCategoryLore(item));
                 for (ItemStack drop : overflow.values()) {
                     p.getWorld().dropItemNaturally(p.getLocation(), drop);
                 }
@@ -1627,7 +1627,7 @@ public class AuctionGUI implements Listener {
                 openSetPrice(p, manager);
             } else {
                 pendingSelection.remove(p);
-                p.getInventory().addItem(sel);
+                p.getInventory().addItem(AuctionManager.stripCategoryLore(sel));
                 p.sendMessage("Cancelled listing.");
                 p.closeInventory();
             }
@@ -1675,7 +1675,7 @@ public class AuctionGUI implements Listener {
             pendingListingType.remove(p);
             pendingPrice.remove(p);
             if (item != null) {
-                HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(item);
+                HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(AuctionManager.stripCategoryLore(item));
                 for (ItemStack drop : overflow.values()) {
                     p.getWorld().dropItemNaturally(p.getLocation(), drop);
                 }
