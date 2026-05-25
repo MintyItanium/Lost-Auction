@@ -26,6 +26,18 @@ public class AuctionGUI implements Listener {
 
     public AuctionGUI(AuctionManager m) { this.manager = m; }
 
+    private static String formatMaterialName(Material material) {
+        String[] words = material.name().split("_");
+        StringBuilder sb = new StringBuilder();
+        for (String word : words) {
+            if (word.isEmpty()) continue;
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(Character.toUpperCase(word.charAt(0)));
+            if (word.length() > 1) sb.append(word.substring(1).toLowerCase());
+        }
+        return sb.toString();
+    }
+
     private static String formatDuration(long millis) {
         if (millis <= 0) return "Ended";
         long secs = millis / 1000;
@@ -255,7 +267,7 @@ public class AuctionGUI implements Listener {
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             meta.setLore(lore);
-            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             meta.setDisplayName(ChatColor.GREEN + itemName);
             item.setItemMeta(meta);
             inv.setItem(row * 9 + col, item);
@@ -497,7 +509,7 @@ public class AuctionGUI implements Listener {
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             meta.setLore(lore);
-            String displayName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
+            String displayName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             meta.setDisplayName(ChatColor.GREEN + displayName);
             item.setItemMeta(meta);
             inv.setItem(slot++, item);
@@ -609,7 +621,7 @@ public class AuctionGUI implements Listener {
             String role = a.seller.equals(p.getUniqueId()) ? "Seller" : "Bidder";
             lore.add("Your Role: " + role);
             meta.setLore(lore);
-            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             ChatColor color = isActive ? ChatColor.GREEN : ChatColor.YELLOW;
             meta.setDisplayName(color + itemName);
             item.setItemMeta(meta);
@@ -677,7 +689,7 @@ public class AuctionGUI implements Listener {
             }
 
             meta.setLore(lore);
-            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             ChatColor color = isActive ? ChatColor.GREEN : ChatColor.GOLD;
             meta.setDisplayName(color + itemName);
             item.setItemMeta(meta);
@@ -749,7 +761,7 @@ public class AuctionGUI implements Listener {
                 lore.add(ChatColor.YELLOW + "Current bidder will be refunded");
             }
             meta.setLore(lore);
-            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             meta.setDisplayName(ChatColor.GREEN + itemName);
             item.setItemMeta(meta);
             inv.setItem(row * 9 + col, item);
@@ -836,7 +848,7 @@ public class AuctionGUI implements Listener {
             }
         }
 
-        HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(a.item);
+        HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
         for (ItemStack drop : overflow.values()) {
             p.getWorld().dropItemNaturally(p.getLocation(), drop);
         }
@@ -921,7 +933,7 @@ public class AuctionGUI implements Listener {
             if (!manager.getEconomy().has(p, price)) { p.sendMessage("You cannot afford this item."); return; }
             manager.getEconomy().withdrawPlayer(p, price);
             manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
-            if (p.isOnline()) p.getInventory().addItem(a.item);
+            if (p.isOnline()) p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
             manager.removeAuction(a.id);
             p.sendMessage("[Auction] You bought item for " + price);
         } else {
@@ -1005,7 +1017,7 @@ public class AuctionGUI implements Listener {
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             meta.setLore(lore);
-            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             meta.setDisplayName(ChatColor.GREEN + itemName);
             item.setItemMeta(meta);
             inv.setItem(slot++, item);
@@ -1099,7 +1111,7 @@ public class AuctionGUI implements Listener {
             manager.getEconomy().withdrawPlayer(p, price);
             manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
             // deliver item
-            if (p.isOnline()) p.getInventory().addItem(a.item);
+            if (p.isOnline()) p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
             manager.removeAuction(a.id);
             p.sendMessage("[Auction] You bought item for " + price);
         } else {
@@ -1174,7 +1186,7 @@ public class AuctionGUI implements Listener {
             manager.getEconomy().withdrawPlayer(p, price);
             manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
             // deliver item
-            if (p.isOnline()) p.getInventory().addItem(a.item);
+            if (p.isOnline()) p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
             manager.removeAuction(a.id);
             p.sendMessage("[Auction] You bought item for " + price);
         } else {
@@ -1235,7 +1247,7 @@ public class AuctionGUI implements Listener {
             lore.add("Ends in: " + formatDuration(remaining));
             lore.add("Category: " + a.category);
             meta.setLore(lore);
-            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             meta.setDisplayName(ChatColor.GREEN + itemName);
             item.setItemMeta(meta);
             inv.setItem(row * 9 + col, item);
@@ -1331,7 +1343,7 @@ public class AuctionGUI implements Listener {
             manager.getEconomy().withdrawPlayer(p, price);
             manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
             // deliver item
-            if (p.isOnline()) p.getInventory().addItem(a.item);
+            if (p.isOnline()) p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
             manager.removeAuction(a.id);
             p.sendMessage("[Auction] You bought item for " + price);
         } else {
@@ -1438,7 +1450,7 @@ public class AuctionGUI implements Listener {
             pendingListingType.remove(p);
             pendingPrice.remove(p);
             if (item != null) {
-                HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(item);
+                HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(AuctionManager.stripCategoryLore(item));
                 for (ItemStack drop : overflow.values()) {
                     p.getWorld().dropItemNaturally(p.getLocation(), drop);
                 }
@@ -1627,7 +1639,7 @@ public class AuctionGUI implements Listener {
                 openSetPrice(p, manager);
             } else {
                 pendingSelection.remove(p);
-                p.getInventory().addItem(sel);
+                p.getInventory().addItem(AuctionManager.stripCategoryLore(sel));
                 p.sendMessage("Cancelled listing.");
                 p.closeInventory();
             }
@@ -1675,7 +1687,7 @@ public class AuctionGUI implements Listener {
             pendingListingType.remove(p);
             pendingPrice.remove(p);
             if (item != null) {
-                HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(item);
+                HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(AuctionManager.stripCategoryLore(item));
                 for (ItemStack drop : overflow.values()) {
                     p.getWorld().dropItemNaturally(p.getLocation(), drop);
                 }
