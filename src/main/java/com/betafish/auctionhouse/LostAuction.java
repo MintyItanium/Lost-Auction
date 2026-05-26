@@ -3,8 +3,11 @@ package com.betafish.auctionhouse;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import java.io.InputStreamReader;
 
 public class LostAuction extends JavaPlugin {
     private static LostAuction instance;
@@ -15,6 +18,7 @@ public class LostAuction extends JavaPlugin {
     public void onEnable() {
         instance = this;
         saveDefaultConfig();
+        fillMissingConfig();
         if (!setupEconomy()) {
             getLogger().severe("Vault and EssentialsX is required. Plugin disabled.");
             getServer().getPluginManager().disablePlugin(this);
@@ -46,6 +50,13 @@ public class LostAuction extends JavaPlugin {
     public void onDisable() {
         if (auctionManager != null) auctionManager.save();
         getLogger().info("LostAuction disabled");
+    }
+
+    private void fillMissingConfig() {
+        FileConfiguration defaultConfig = YamlConfiguration.loadConfiguration(new InputStreamReader(getResource("config.yml")));
+        getConfig().setDefaults(defaultConfig);
+        getConfig().options().copyDefaults(true);
+        saveConfig();
     }
 
     private boolean setupEconomy() {
