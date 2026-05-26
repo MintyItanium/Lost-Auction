@@ -24,6 +24,7 @@ public class AuctionGUI implements Listener {
     private static final Map<Player, String> pendingCategory = new HashMap<>();
     private static final Map<Player, Auction.Type> pendingListingType = new HashMap<>();
     private static final Map<Player, Long> pendingPrice = new HashMap<>();
+    private static final Map<Player, String> adminSelectedAuction = new HashMap<>();
 
     public AuctionGUI(AuctionManager m) { this.manager = m; }
 
@@ -423,12 +424,87 @@ public class AuctionGUI implements Listener {
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             lore.add("");
-            lore.add("Left-click to force-end this auction.");
+            lore.add("Click to manage");
             meta.setLore(lore);
             meta.setDisplayName(ChatColor.RED + "[ADMIN] Auction: " + a.id);
             item.setItemMeta(meta);
             inv.setItem(i++, item);
         }
+        p.openInventory(inv);
+    }
+
+    public static void openAdminActions(Player p, AuctionManager manager) {
+        String auctionId = adminSelectedAuction.get(p);
+        if (auctionId == null) { p.sendMessage("No auction selected."); return; }
+        Auction a = manager.getAuction(auctionId);
+        if (a == null) { p.sendMessage("Auction not found."); adminSelectedAuction.remove(p); return; }
+
+        String itemName = a.item.getItemMeta() != null && a.item.getItemMeta().hasDisplayName()
+                ? a.item.getItemMeta().getDisplayName()
+                : formatMaterialName(a.item.getType());
+        Inventory inv = Bukkit.createInventory(null, 9, ChatColor.BLACK + "Auction Admin [" + getPlayerName(a.seller) + "]: " + ChatColor.stripColor(itemName));
+
+        ItemStack endBtn = new ItemStack(Material.REDSTONE_BLOCK);
+        ItemMeta endMeta = endBtn.getItemMeta();
+        endMeta.setDisplayName(ChatColor.RED + "End Auction");
+        List<String> endLore = new ArrayList<>();
+        endLore.add(ChatColor.GRAY + "Force-end and deliver item");
+        endMeta.setLore(endLore);
+        endBtn.setItemMeta(endMeta);
+        inv.setItem(0, endBtn);
+
+        ItemStack bidBtn = new ItemStack(Material.GOLD_INGOT);
+        ItemMeta bidMeta = bidBtn.getItemMeta();
+        bidMeta.setDisplayName(ChatColor.GOLD + "Change Bid");
+        List<String> bidLore = new ArrayList<>();
+        bidLore.add(ChatColor.GRAY + "Current: " + (a.type == Auction.Type.FIXED ? a.startingPrice : a.currentBid));
+        bidLore.add(ChatColor.GRAY + "Click, then type new amount in chat");
+        bidMeta.setLore(bidLore);
+        bidBtn.setItemMeta(bidMeta);
+        inv.setItem(1, bidBtn);
+
+        ItemStack renewBtn = new ItemStack(Material.CLOCK);
+        ItemMeta renewMeta = renewBtn.getItemMeta();
+        renewMeta.setDisplayName(ChatColor.GREEN + "Renew Auction");
+        List<String> renewLore = new ArrayList<>();
+        renewLore.add(ChatColor.GRAY + "Resets the timer to the full duration");
+        renewMeta.setLore(renewLore);
+        renewBtn.setItemMeta(renewMeta);
+        inv.setItem(2, renewBtn);
+
+        ItemStack removeBidBtn = new ItemStack(Material.BARRIER);
+        ItemMeta removeBidMeta = removeBidBtn.getItemMeta();
+        removeBidMeta.setDisplayName(ChatColor.YELLOW + "Remove Bid");
+        List<String> removeBidLore = new ArrayList<>();
+        removeBidLore.add(ChatColor.GRAY + "Refund and clear current bidder");
+        removeBidMeta.setLore(removeBidLore);
+        removeBidBtn.setItemMeta(removeBidMeta);
+        inv.setItem(3, removeBidBtn);
+
+        ItemStack deleteBtn = new ItemStack(Material.TNT);
+        ItemMeta deleteMeta = deleteBtn.getItemMeta();
+        deleteMeta.setDisplayName(ChatColor.DARK_RED + "Delete");
+        List<String> deleteLore = new ArrayList<>();
+        deleteLore.add(ChatColor.GRAY + "Remove from database (no delivery)");
+        deleteMeta.setLore(deleteLore);
+        deleteBtn.setItemMeta(deleteMeta);
+        inv.setItem(4, deleteBtn);
+
+        ItemStack infoItem = a.item.clone();
+        ItemMeta infoMeta = infoItem.getItemMeta();
+        if (infoMeta != null) {
+            infoMeta.setDisplayName(ChatColor.AQUA + "Auction " + auctionId);
+            List<String> infoLore = new ArrayList<>(infoMeta.hasLore() ? infoMeta.getLore() : new ArrayList<>());
+            infoLore.add(ChatColor.GRAY + "Seller: " + getPlayerName(a.seller));
+            infoLore.add(ChatColor.GRAY + "Type: " + a.type.name());
+            if (a.type == Auction.Type.FIXED) infoLore.add(ChatColor.GRAY + "Price: " + a.startingPrice);
+            else infoLore.add(ChatColor.GRAY + "Bid: " + a.currentBid + (a.currentBidder == null ? " (no bids)" : ""));
+            infoLore.add(ChatColor.GRAY + "Ends: " + formatDuration(a.endTime - System.currentTimeMillis()));
+            infoMeta.setLore(infoLore);
+            infoItem.setItemMeta(infoMeta);
+        }
+        inv.setItem(8, infoItem);
+
         p.openInventory(inv);
     }
 
@@ -1674,10 +1750,58 @@ public class AuctionGUI implements Listener {
         if (lore == null || lore.isEmpty()) return;
         String idLine = lore.get(0);
         String id = idLine.replace("ID: ", "");
-        boolean ok = manager.forceEnd(id);
-        if (ok) p.sendMessage("[AuctionAdmin] Auction " + id + " was force-ended.");
-        else p.sendMessage("[AuctionAdmin] Auction " + id + " not found.");
-        p.closeInventory();
+        adminSelectedAuction.put(p, id);
+        openAdminActions(p, manager);
+    }
+
+    @EventHandler
+    public void onInventoryClickAdminAction(InventoryClickEvent e) {
+        if (!e.getView().getTitle().startsWith(ChatColor.BLACK + "Auction Admin [")) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player)) return;
+        Player p = (Player) e.getWhoClicked();
+        if (!p.hasPermission("lost.auction.admin")) { p.closeInventory(); return; }
+        String auctionId = adminSelectedAuction.get(p);
+        if (auctionId == null) { p.closeInventory(); return; }
+        ItemStack clicked = e.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
+        String display = clicked.getItemMeta() != null && clicked.getItemMeta().hasDisplayName() ? clicked.getItemMeta().getDisplayName() : "";
+
+        if (display.isEmpty()) return;
+
+        if (display.equals(ChatColor.RED + "End Auction")) {
+            if (manager.forceEnd(auctionId))
+                p.sendMessage("[AuctionAdmin] Auction " + auctionId + " force-ended.");
+            else
+                p.sendMessage("[AuctionAdmin] Auction not found.");
+            adminSelectedAuction.remove(p);
+            p.closeInventory();
+        } else if (display.equals(ChatColor.GOLD + "Change Bid")) {
+            p.sendMessage(ChatColor.YELLOW + "[AuctionAdmin] Type the new bid/price in chat.");
+            p.closeInventory();
+            AnvilListener.awaitingAdminBid.put(p, auctionId);
+        } else if (display.equals(ChatColor.GREEN + "Renew Auction")) {
+            if (manager.renewAuction(auctionId))
+                p.sendMessage("[AuctionAdmin] Auction " + auctionId + " renewed.");
+            else
+                p.sendMessage("[AuctionAdmin] Auction not found.");
+            adminSelectedAuction.remove(p);
+            p.closeInventory();
+        } else if (display.equals(ChatColor.YELLOW + "Remove Bid")) {
+            if (manager.removeBid(auctionId))
+                p.sendMessage("[AuctionAdmin] Bid removed from " + auctionId + ".");
+            else
+                p.sendMessage("[AuctionAdmin] No bid to remove or auction not found.");
+            adminSelectedAuction.remove(p);
+            p.closeInventory();
+        } else if (display.equals(ChatColor.DARK_RED + "Delete")) {
+            if (manager.deleteAuction(auctionId))
+                p.sendMessage("[AuctionAdmin] Auction " + auctionId + " deleted.");
+            else
+                p.sendMessage("[AuctionAdmin] Auction not found.");
+            adminSelectedAuction.remove(p);
+            p.closeInventory();
+        }
     }
 
     @EventHandler
