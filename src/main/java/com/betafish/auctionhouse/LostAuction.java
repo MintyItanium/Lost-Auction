@@ -20,7 +20,7 @@ public class LostAuction extends JavaPlugin {
         saveDefaultConfig();
         fillMissingConfig();
         if (!setupEconomy()) {
-            getLogger().severe("Vault and EssentialsX is required. Plugin disabled.");
+            getLogger().severe("Vault and EssentialsX are required. Plugin disabled.");
             getServer().getPluginManager().disablePlugin(this);
             return;
         }

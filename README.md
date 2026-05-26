@@ -1,11 +1,11 @@
 # Auction House
 
-Simple Auction House plugin for Paper 1.21.x
+a Auction House plugin for Paper 1.21.x
 
 
 ## Requirements
 
-- Paper server (1.21.x) or ShreddedPaper 1.21.11
+- Paper server 1.21.x or ShreddedPaper 1.21.11
 - Vault plugin
 - EssentialsX
 - Java 21+

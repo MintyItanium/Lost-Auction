@@ -53,7 +53,6 @@ public class AnvilListener implements Listener {
         p.closeInventory();
         awaitingSearch.put(p, true);
     }
-// Todo: Figure out how to do it without chat.
     public static void openAnvilForListing(Player p, ItemStack item, AuctionManager manager, Auction.Type type, String category) {
         p.sendMessage("\n\u00A76Auction House\n\u00A7ePlease enter the price in chat. \n");
         p.closeInventory();
@@ -66,7 +65,7 @@ public class AnvilListener implements Listener {
         if (!(e.getWhoClicked() instanceof Player)) return;
         e.setCancelled(true);
         Player p = (Player) e.getWhoClicked();
-        if (!p.hasPermission("lost.auction")) { p.sendMessage("You do not have permission to use the auction house."); p.closeInventory(); return; }
+        if (!p.hasPermission("lost.auction")) { p.sendMessage("You do not have permission to use this command"); p.closeInventory(); return; }
         ItemStack result = e.getCurrentItem();
         if (result == null || !result.hasItemMeta()) return;
         String name = result.getItemMeta().getDisplayName();

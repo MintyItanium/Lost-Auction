@@ -197,7 +197,7 @@ public class AuctionManager {
     }
 
     /**
-     * Force-end an auction immediately (admin use).
+     * Force-end an auction immediately (/auctionadmin).
      * @param id auction id
      * @return true if auction was found and ended, false otherwise
      */
