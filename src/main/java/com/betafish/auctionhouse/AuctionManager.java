@@ -238,7 +238,7 @@ public class AuctionManager {
         Auction a = auctions.get(id);
         if (a == null || a.currentBidder == null) return false;
         econ.depositPlayer(Bukkit.getOfflinePlayer(a.currentBidder), a.currentBid);
-        MessagePlayer(a.currentBidder, "Your bid on auction " + a.id + " was removed by an admin. Refunded " + a.currentBid);
+        MessagePlayer(a.currentBidder, "Your bid on auction " + a.id + " was removed. Refunded " + a.currentBid);
         a.currentBid = 0;
         a.currentBidder = null;
         save();
