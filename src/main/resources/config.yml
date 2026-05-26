@@ -2,3 +2,5 @@ default-duration-hours: 24
 check-interval-seconds: 90
 anvil-bid-min-increment: 1.0
 max-listings-per-player: 5
+easter-egg-enabled: true
+bypass-easter-egg-timer: false
