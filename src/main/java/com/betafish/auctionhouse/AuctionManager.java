@@ -238,7 +238,7 @@ public class AuctionManager {
         Auction a = auctions.get(id);
         if (a == null || a.currentBidder == null) return false;
         econ.depositPlayer(Bukkit.getOfflinePlayer(a.currentBidder), a.currentBid);
-        OfflineMessage(a.currentBidder, "Your bid on auction " + a.id + " was removed by an admin. Refunded " + a.currentBid);
+        MessagePlayer(a.currentBidder, "Your bid on auction " + a.id + " was removed by an admin. Refunded " + a.currentBid);
         a.currentBid = 0;
         a.currentBidder = null;
         save();
@@ -283,7 +283,7 @@ public class AuctionManager {
                 }
                 // pay seller
                 econ.depositPlayer(Bukkit.getOfflinePlayer(a.seller), a.currentBid);
-                OfflineMessage(a.seller, "Your item sold for " + a.currentBid);
+                MessagePlayer(a.seller, "Your item sold for " + a.currentBid);
             } else {
                 // no bids, return to seller
                 Player seller = Bukkit.getPlayer(a.seller);
@@ -297,7 +297,7 @@ public class AuctionManager {
         }
     }
 
-    private void OfflineMessage(UUID sellerId, String msg) {
+    private void MessagePlayer(UUID sellerId, String msg) {
         Player p = Bukkit.getPlayer(sellerId);
         if (p != null && p.isOnline()) p.sendMessage("[Auction] " + msg);
     }
