@@ -19,6 +19,7 @@ public class AnvilListener implements Listener {
     private static final Map<Player, String> awaitingAuction = new HashMap<>();
     private static final Map<Player, PendingListing> awaitingListing = new HashMap<>();
     private static final Map<Player, Boolean> awaitingSearch = new HashMap<>();
+    public static final Map<Player, String> awaitingAdminBid = new HashMap<>();
     private final AuctionManager manager;
 
     public AnvilListener(AuctionManager manager) { this.manager = manager; }
@@ -136,6 +137,27 @@ public class AnvilListener implements Listener {
             // process on main thread
             Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
                 AuctionGUI.openSearchResults(p, manager, searchTerm, 0);
+            });
+            return;
+        }
+
+        if (awaitingAdminBid.containsKey(p)) {
+            e.setCancelled(true);
+            String msg = e.getMessage();
+            Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
+                String raw = msg.replaceAll("[^0-9\\.]", "");
+                double bid;
+                try { bid = Double.parseDouble(raw); } catch (Exception ex) {
+                    p.sendMessage("Invalid amount.");
+                    awaitingAdminBid.remove(p);
+                    return;
+                }
+                String aid = awaitingAdminBid.remove(p);
+                if (aid == null) return;
+                if (manager.changeBid(aid, bid))
+                    p.sendMessage("[AuctionAdmin] Bid/price changed to " + bid + " for auction " + aid + ".");
+                else
+                    p.sendMessage("[AuctionAdmin] Auction not found.");
             });
             return;
         }
