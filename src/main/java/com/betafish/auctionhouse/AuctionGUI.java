@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.UUID;
 
 public class AuctionGUI implements Listener {
     private final AuctionManager manager;
@@ -25,6 +26,11 @@ public class AuctionGUI implements Listener {
     private static final Map<Player, Long> pendingPrice = new HashMap<>();
 
     public AuctionGUI(AuctionManager m) { this.manager = m; }
+
+    private static String getPlayerName(UUID uuid) {
+        String name = Bukkit.getOfflinePlayer(uuid).getName();
+        return name != null ? name : "Unknown";
+    }
 
     private static String formatMaterialName(Material material) {
         String[] words = material.name().split("_");
@@ -266,6 +272,7 @@ public class AuctionGUI implements Listener {
             else lore.add("Current bid: " + a.currentBid + (a.currentBidder == null ? " (no bids)" : ""));
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
+            lore.add("Seller: " + getPlayerName(a.seller));
             meta.setLore(lore);
             String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             meta.setDisplayName(ChatColor.GREEN + itemName);
@@ -409,7 +416,7 @@ public class AuctionGUI implements Listener {
             ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : Bukkit.getItemFactory().getItemMeta(item.getType());
             List<String> lore = new ArrayList<>();
             lore.add("ID: " + a.id);
-            lore.add("Seller: " + a.seller.toString());
+            lore.add("Seller: " + getPlayerName(a.seller));
             lore.add("Type: " + a.type.name());
             if (a.type == Auction.Type.FIXED) lore.add("Price: " + a.startingPrice);
             else lore.add("Current bid: " + a.currentBid + (a.currentBidder == null ? " (no bids)" : ""));
@@ -508,6 +515,7 @@ public class AuctionGUI implements Listener {
             else lore.add("Current bid: " + a.currentBid + (a.currentBidder == null ? " (no bids)" : ""));
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
+            lore.add("Seller: " + getPlayerName(a.seller));
             meta.setLore(lore);
             String displayName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             meta.setDisplayName(ChatColor.GREEN + displayName);
@@ -620,6 +628,11 @@ public class AuctionGUI implements Listener {
 
             String role = a.seller.equals(p.getUniqueId()) ? "Seller" : "Bidder";
             lore.add("Your Role: " + role);
+            if (role.equals("Bidder")) {
+                lore.add("Seller: " + getPlayerName(a.seller));
+            } else if (a.currentBidder != null) {
+                lore.add("Buyer: " + getPlayerName(a.currentBidder));
+            }
             meta.setLore(lore);
             String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             ChatColor color = isActive ? ChatColor.GREEN : ChatColor.YELLOW;
@@ -670,9 +683,9 @@ public class AuctionGUI implements Listener {
             ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : Bukkit.getItemFactory().getItemMeta(item.getType());
             List<String> lore = new ArrayList<>();
             lore.add("ID: " + a.id);
-            lore.add("Seller: " + a.seller.toString());
+            lore.add("Seller: " + getPlayerName(a.seller));
             if (a.currentBidder != null) {
-                lore.add("Winner: " + a.currentBidder.toString());
+                lore.add("Winner: " + getPlayerName(a.currentBidder));
             }
             lore.add("Type: " + (a.type == Auction.Type.FIXED ? "Fixed Price" : "Auction"));
 
@@ -1016,6 +1029,7 @@ public class AuctionGUI implements Listener {
             else lore.add("Current bid: " + a.currentBid + (a.currentBidder == null ? " (no bids)" : ""));
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
+            lore.add("Seller: " + getPlayerName(a.seller));
             meta.setLore(lore);
             String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             meta.setDisplayName(ChatColor.GREEN + itemName);
@@ -1246,6 +1260,7 @@ public class AuctionGUI implements Listener {
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             lore.add("Category: " + a.category);
+            lore.add("Seller: " + getPlayerName(a.seller));
             meta.setLore(lore);
             String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
             meta.setDisplayName(ChatColor.GREEN + itemName);
