@@ -171,9 +171,6 @@ public class AuctionManager {
         if (type == Auction.Type.AUCTION) a.currentBid = 0.0;
         auctions.put(id, a);
 
-        // Add to seller's history immediately when created
-        playerHistory.computeIfAbsent(seller, k -> new ArrayList<>()).add(a);
-
         save();
         return a;
     }
@@ -183,6 +180,36 @@ public class AuctionManager {
     public Auction getAuction(String id) { return auctions.get(id); }
 
     public void removeAuction(String id) { auctions.remove(id); save(); }
+
+    public boolean isBuyItNowEnabled() {
+        return plugin.getConfig().getBoolean("buy-it-now-enabled", true);
+    }
+
+    public boolean buyItNow(Player buyer, Auction a) {
+        if (!isBuyItNowEnabled()) return false;
+        double price = a.startingPrice;
+        if (!econ.has(buyer, price)) return false;
+        econ.withdrawPlayer(buyer, price);
+        econ.depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
+
+        // deliver item
+        HashMap<Integer, ItemStack> overflow = buyer.getInventory().addItem(stripCategoryLore(a.item));
+        for (ItemStack drop : overflow.values()) {
+            buyer.getWorld().dropItemNaturally(buyer.getLocation(), drop);
+        }
+
+        // record buyer so history shows "Sold" instead of "Expired"
+        a.currentBidder = buyer.getUniqueId();
+        a.currentBid = price;
+
+        // record in history for both
+        playerHistory.computeIfAbsent(a.seller, k -> new ArrayList<>()).add(a);
+        playerHistory.computeIfAbsent(buyer.getUniqueId(), k -> new ArrayList<>()).add(a);
+
+        auctions.remove(a.id);
+        save();
+        return true;
+    }
 
     public void addPendingDelivery(UUID player, ItemStack item) {
         pendingDeliveries.computeIfAbsent(player, k -> new ArrayList<>()).add(item);

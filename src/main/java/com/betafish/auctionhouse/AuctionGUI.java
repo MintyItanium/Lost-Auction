@@ -334,7 +334,11 @@ public class AuctionGUI implements Listener {
         fillBorder(inv);
         setBalanceItem(inv, p, manager, 4);
 
-        List<Auction> auctions = new ArrayList<>(manager.listAuctions());
+        List<Auction> auctions = new ArrayList<>();
+        for (Auction a : manager.listAuctions()) {
+            if (a.type == Auction.Type.FIXED && !manager.isBuyItNowEnabled()) continue;
+            auctions.add(a);
+        }
         int itemsPerPage = 28;
         int startIndex = page * itemsPerPage;
         int endIndex = Math.min(startIndex + itemsPerPage, auctions.size());
@@ -449,14 +453,18 @@ public class AuctionGUI implements Listener {
 
     public static void openChooseListingType(Player p, AuctionManager manager, ItemStack selectedItem, String category) {
         Inventory inv = Bukkit.createInventory(null, 9, "Choose Listing Type");
-        ItemStack sell = new ItemStack(Material.PAPER);
-        ItemMeta sm = sell.getItemMeta();
-        sm.setDisplayName(ChatColor.GOLD + "Sell (Fixed Price)");
-        List<String> sl = new ArrayList<>();
-        sl.add("Click to list this item for a fixed price");
-        sl.add("Category: " + category);
-        sm.setLore(sl);
-        sell.setItemMeta(sm);
+
+        if (manager.isBuyItNowEnabled()) {
+            ItemStack sell = new ItemStack(Material.PAPER);
+            ItemMeta sm = sell.getItemMeta();
+            sm.setDisplayName(ChatColor.GOLD + "Sell (Fixed Price)");
+            List<String> sl = new ArrayList<>();
+            sl.add("Click to list this item for a fixed price");
+            sl.add("Category: " + category);
+            sm.setLore(sl);
+            sell.setItemMeta(sm);
+            inv.setItem(3, sell);
+        }
 
         ItemStack auc = new ItemStack(Material.ANVIL);
         ItemMeta am = auc.getItemMeta();
@@ -467,7 +475,6 @@ public class AuctionGUI implements Listener {
         am.setLore(al);
         auc.setItemMeta(am);
 
-        inv.setItem(3, sell);
         inv.setItem(5, auc);
 
         // Store the selected item and category for later use
@@ -667,6 +674,7 @@ public class AuctionGUI implements Listener {
         Inventory inv = Bukkit.createInventory(null, 54, "Search Results: '" + searchTerm + "' - Page " + (page + 1));
         List<Auction> searchResults = new ArrayList<>();
         for (Auction a : manager.listAuctions()) {
+            if (a.type == Auction.Type.FIXED && !manager.isBuyItNowEnabled()) continue;
             String itemName = a.item.getType().name().toLowerCase();
             if (a.item.hasItemMeta() && a.item.getItemMeta().hasDisplayName()) {
                 itemName = a.item.getItemMeta().getDisplayName().toLowerCase();
@@ -804,7 +812,8 @@ public class AuctionGUI implements Listener {
             lore.add("Your Role: " + role);
             if (role.equals("Bidder")) {
                 lore.add("Seller: " + getPlayerName(a.seller));
-            } else if (a.currentBidder != null) {
+            }
+            if (a.currentBidder != null) {
                 lore.add("Buyer: " + getPlayerName(a.currentBidder));
             }
             meta.setLore(lore);
@@ -859,7 +868,7 @@ public class AuctionGUI implements Listener {
             lore.add("ID: " + a.id);
             lore.add("Seller: " + getPlayerName(a.seller));
             if (a.currentBidder != null) {
-                lore.add("Winner: " + getPlayerName(a.currentBidder));
+                lore.add("Buyer: " + getPlayerName(a.currentBidder));
             }
             lore.add("Type: " + (a.type == Auction.Type.FIXED ? "Buy it Now" : "Auction"));
 
@@ -1114,13 +1123,8 @@ public class AuctionGUI implements Listener {
         }
 
         if (a.type == Auction.Type.FIXED) {
-            double price = a.startingPrice;
-            if (!manager.getEconomy().has(p, price)) { p.sendMessage("You cannot afford this item."); return; }
-            manager.getEconomy().withdrawPlayer(p, price);
-            manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
-            if (p.isOnline()) p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
-            manager.removeAuction(a.id);
-            p.sendMessage("[Auction] You bought item for " + price);
+            if (!manager.buyItNow(p, a)) { p.sendMessage("You cannot afford this item."); return; }
+            p.sendMessage("[Auction] You bought item for " + a.startingPrice);
         } else {
             AnvilListener.openAnvilForBid(p, a, manager);
         }
@@ -1128,15 +1132,17 @@ public class AuctionGUI implements Listener {
     public static void openTypeFilter(Player p, AuctionManager manager) {
         Inventory inv = Bukkit.createInventory(null, 27, "Filter by Auction Type");
 
-        // But it now button
-        ItemStack fixedBtn = new ItemStack(Material.PAPER);
-        ItemMeta fixedMeta = fixedBtn.getItemMeta();
-        fixedMeta.setDisplayName(ChatColor.GOLD + "Show Buy it now Only");
-        List<String> fLore = new ArrayList<>();
-        fLore.add("Buy-it-now items");
-        fixedMeta.setLore(fLore);
-        fixedBtn.setItemMeta(fixedMeta);
-        inv.setItem(11, fixedBtn);
+        if (manager.isBuyItNowEnabled()) {
+            // Buy it now button
+            ItemStack fixedBtn = new ItemStack(Material.PAPER);
+            ItemMeta fixedMeta = fixedBtn.getItemMeta();
+            fixedMeta.setDisplayName(ChatColor.GOLD + "Show Buy it now Only");
+            List<String> fLore = new ArrayList<>();
+            fLore.add("Buy-it-now items");
+            fixedMeta.setLore(fLore);
+            fixedBtn.setItemMeta(fixedMeta);
+            inv.setItem(11, fixedBtn);
+        }
 
         // Auction button
         ItemStack auctionBtn = new ItemStack(Material.ANVIL);
@@ -1172,6 +1178,7 @@ public class AuctionGUI implements Listener {
         if (clickedMeta != null && clickedMeta.hasDisplayName()) {
             String displayName = clickedMeta.getDisplayName();
             if (displayName.equals(ChatColor.GOLD + "Show Buy it now Only")) {
+                if (!manager.isBuyItNowEnabled()) return;
                 openFilteredAuctions(p, manager, Auction.Type.FIXED, 0);
             } else if (displayName.equals(ChatColor.GREEN + "Show Auctions Only")) {
                 openFilteredAuctions(p, manager, Auction.Type.AUCTION, 0);
@@ -1290,7 +1297,8 @@ public class AuctionGUI implements Listener {
         Inventory inv = Bukkit.createInventory(null, 54, "Filtered Auctions: " + filterType.name() + " - Page " + (page + 1));
         List<Auction> filteredAuctions = new ArrayList<>();
         for (Auction a : manager.listAuctions()) {
-            if (a.type == filterType) filteredAuctions.add(a);
+            if (a.type == filterType && (filterType != Auction.Type.FIXED || manager.isBuyItNowEnabled()))
+                filteredAuctions.add(a);
         }
         int itemsPerPage = 45;
         int startIndex = page * itemsPerPage;
@@ -1348,6 +1356,7 @@ public class AuctionGUI implements Listener {
         double min = priceFilterMin.getOrDefault(p, 0.0);
         double max = priceFilterMax.getOrDefault(p, Double.MAX_VALUE);
         for (Auction a : manager.listAuctions()) {
+            if (a.type == Auction.Type.FIXED && !manager.isBuyItNowEnabled()) continue;
             double price = a.type == Auction.Type.FIXED ? a.startingPrice : a.currentBid;
             if (price >= min && price <= max) {
                 filteredResults.add(a);
@@ -1442,7 +1451,7 @@ public class AuctionGUI implements Listener {
         int startIndex = currentPage * 45;
 
         for (Auction a : manager.listAuctions()) {
-            if (a.type == filterType) auctionList.add(a);
+            if (a.type == filterType && (filterType != Auction.Type.FIXED || manager.isBuyItNowEnabled())) auctionList.add(a);
         }
 
         int auctionIndex = startIndex + slot;
@@ -1455,155 +1464,8 @@ public class AuctionGUI implements Listener {
         }
 
         if (a.type == Auction.Type.FIXED) {
-            double price = a.startingPrice;
-            if (!manager.getEconomy().has(p, price)) { p.sendMessage("You cannot afford this item."); return; }
-            manager.getEconomy().withdrawPlayer(p, price);
-            manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
-            // deliver item
-            if (p.isOnline()) p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
-            manager.removeAuction(a.id);
-            p.sendMessage("[Auction] You bought item for " + price);
-        } else {
-            // open anvil to input bid
-            AnvilListener.openAnvilForBid(p, a, manager);
-        }
-    }
-
-    @EventHandler
-    public void onInventoryClickSearchResults(InventoryClickEvent e) {
-        if (!e.getView().getTitle().startsWith("Search Results:")) return;
-        e.setCancelled(true);
-        if (!(e.getWhoClicked() instanceof Player)) return;
-        Player p = (Player) e.getWhoClicked();
-
-        ItemStack clicked = e.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.AIR) return;
-
-        ItemMeta clickedMeta = clicked.getItemMeta();
-        if (clickedMeta != null && clickedMeta.hasDisplayName()) {
-            String displayName = clickedMeta.getDisplayName();
-            if (displayName.equals(ChatColor.YELLOW + "Previous Page")) {
-                String title = e.getView().getTitle();
-                String searchTerm = title.substring(title.indexOf("'") + 1, title.lastIndexOf("'"));
-                int currentPage = Integer.parseInt(title.substring(title.lastIndexOf(" ") + 1)) - 1;
-                openSearchResults(p, manager, searchTerm, currentPage - 1);
-                return;
-            } else if (displayName.equals(ChatColor.YELLOW + "Next Page")) {
-                String title = e.getView().getTitle();
-                String searchTerm = title.substring(title.indexOf("'") + 1, title.lastIndexOf("'"));
-                int currentPage = Integer.parseInt(title.substring(title.lastIndexOf(" ") + 1)) - 1;
-                openSearchResults(p, manager, searchTerm, currentPage + 1);
-                return;
-            } else if (displayName.equals(ChatColor.RED + "Back to Search")) {
-                openSearch(p, manager);
-                return;
-            }
-        }
-
-        // Handle auction clicks
-        int slot = e.getSlot();
-        if (slot < 0 || slot >= 45) return; // 45 items per page
-
-        String title = e.getView().getTitle();
-        String searchTerm = title.substring(title.indexOf("'") + 1, title.lastIndexOf("'"));
-        int currentPage = Integer.parseInt(title.substring(title.lastIndexOf(" ") + 1)) - 1;
-        int startIndex = currentPage * 45;
-
-        List<Auction> searchResults = new ArrayList<>();
-        for (Auction a : manager.listAuctions()) {
-            String itemName = a.item.getType().name().toLowerCase();
-            if (a.item.hasItemMeta() && a.item.getItemMeta().hasDisplayName()) {
-                itemName = a.item.getItemMeta().getDisplayName().toLowerCase();
-            }
-            if (itemName.contains(searchTerm.toLowerCase())) {
-                searchResults.add(a);
-            }
-        }
-
-        int auctionIndex = startIndex + slot;
-        if (auctionIndex >= searchResults.size()) return;
-        Auction a = searchResults.get(auctionIndex);
-
-        if (a.seller.equals(p.getUniqueId())) {
-            p.sendMessage(ChatColor.RED + "[Auction] You cannot bid on or buy your own listing.");
-            return;
-        }
-
-        if (a.type == Auction.Type.FIXED) {
-            double price = a.startingPrice;
-            if (!manager.getEconomy().has(p, price)) { p.sendMessage("You cannot afford this item."); return; }
-            manager.getEconomy().withdrawPlayer(p, price);
-            manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
-            // deliver item
-            if (p.isOnline()) p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
-            manager.removeAuction(a.id);
-            p.sendMessage("[Auction] You bought item for " + price);
-        } else {
-            // open anvil to input bid
-            AnvilListener.openAnvilForBid(p, a, manager);
-        }
-    }
-
-    @EventHandler
-    public void onInventoryClickFilteredByPrice(InventoryClickEvent e) {
-        if (!e.getView().getTitle().startsWith("Price Filtered - Page ")) return;
-        e.setCancelled(true);
-        if (!(e.getWhoClicked() instanceof Player)) return;
-        Player p = (Player) e.getWhoClicked();
-
-        ItemStack clicked = e.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.AIR) return;
-
-        ItemMeta clickedMeta = clicked.getItemMeta();
-        if (clickedMeta != null && clickedMeta.hasDisplayName()) {
-            String displayName = clickedMeta.getDisplayName();
-            if (displayName.equals(ChatColor.YELLOW + "Previous Page")) {
-                int currentPage = Integer.parseInt(e.getView().getTitle().substring("Price Filtered - Page ".length())) - 1;
-                openFilteredByPrice(p, manager, currentPage - 1);
-                return;
-            } else if (displayName.equals(ChatColor.YELLOW + "Next Page")) {
-                int currentPage = Integer.parseInt(e.getView().getTitle().substring("Price Filtered - Page ".length())) - 1;
-                openFilteredByPrice(p, manager, currentPage + 1);
-                return;
-            } else if (displayName.equals(ChatColor.RED + "Back to Search")) {
-                openSearch(p, manager);
-                return;
-            }
-        }
-
-        int slot = e.getSlot();
-        if (slot < 0 || slot >= 45) return;
-
-        double min = priceFilterMin.getOrDefault(p, 0.0);
-        double max = priceFilterMax.getOrDefault(p, Double.MAX_VALUE);
-        int currentPage = Integer.parseInt(e.getView().getTitle().substring("Price Filtered - Page ".length())) - 1;
-        int startIndex = currentPage * 45;
-
-        List<Auction> filteredResults = new ArrayList<>();
-        for (Auction a : manager.listAuctions()) {
-            double price = a.type == Auction.Type.FIXED ? a.startingPrice : a.currentBid;
-            if (price >= min && price <= max) {
-                filteredResults.add(a);
-            }
-        }
-
-        int auctionIndex = startIndex + slot;
-        if (auctionIndex >= filteredResults.size()) return;
-        Auction a = filteredResults.get(auctionIndex);
-
-        if (a.seller.equals(p.getUniqueId())) {
-            p.sendMessage(ChatColor.RED + "[Auction] You cannot bid on or buy your own listing.");
-            return;
-        }
-
-        if (a.type == Auction.Type.FIXED) {
-            double price = a.startingPrice;
-            if (!manager.getEconomy().has(p, price)) { p.sendMessage("You cannot afford this item."); return; }
-            manager.getEconomy().withdrawPlayer(p, price);
-            manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
-            if (p.isOnline()) p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
-            manager.removeAuction(a.id);
-            p.sendMessage("[Auction] You bought item for " + price);
+            if (!manager.buyItNow(p, a)) { p.sendMessage("You cannot afford this item."); return; }
+            p.sendMessage("[Auction] You bought item for " + a.startingPrice);
         } else {
             AnvilListener.openAnvilForBid(p, a, manager);
         }
@@ -1641,7 +1503,7 @@ public class AuctionGUI implements Listener {
 
         List<Auction> categoryResults = new ArrayList<>();
         for (Auction a : manager.listAuctions()) {
-            if (category.equals(a.category)) categoryResults.add(a);
+            if (category.equals(a.category) && !(a.type == Auction.Type.FIXED && !manager.isBuyItNowEnabled())) categoryResults.add(a);
         }
         int itemsPerPage = 28;
         int startIndex = page * itemsPerPage;
@@ -1738,7 +1600,7 @@ public class AuctionGUI implements Listener {
 
         List<Auction> categoryResults = new ArrayList<>();
         for (Auction a : manager.listAuctions()) {
-            if (category.equals(a.category)) {
+            if (category.equals(a.category) && !(a.type == Auction.Type.FIXED && !manager.isBuyItNowEnabled())) {
                 categoryResults.add(a);
             }
         }
@@ -1753,14 +1615,8 @@ public class AuctionGUI implements Listener {
         }
 
         if (a.type == Auction.Type.FIXED) {
-            double price = a.startingPrice;
-            if (!manager.getEconomy().has(p, price)) { p.sendMessage("You cannot afford this item."); return; }
-            manager.getEconomy().withdrawPlayer(p, price);
-            manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
-            // deliver item
-            if (p.isOnline()) p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
-            manager.removeAuction(a.id);
-            p.sendMessage("[Auction] You bought item for " + price);
+            if (!manager.buyItNow(p, a)) { p.sendMessage("You cannot afford this item."); return; }
+            p.sendMessage("[Auction] You bought item for " + a.startingPrice);
         } else {
             // open anvil to input bid
             AnvilListener.openAnvilForBid(p, a, manager);
@@ -2103,6 +1959,11 @@ public class AuctionGUI implements Listener {
             }
 
             if (clicked.getType() == Material.PAPER) {
+                if (!manager.isBuyItNowEnabled()) {
+                    p.sendMessage("Buy it Now is disabled on this server.");
+                    p.closeInventory();
+                    return;
+                }
                 pendingCategory.put(p, category);
                 pendingListingType.put(p, Auction.Type.FIXED);
                 openSetPrice(p, manager);
