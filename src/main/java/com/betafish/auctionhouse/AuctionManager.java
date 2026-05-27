@@ -18,7 +18,6 @@ public class AuctionManager {
     private final Map<String, Auction> auctions = new LinkedHashMap<>();
     private final Map<UUID, List<ItemStack>> pendingDeliveries = new HashMap<>();
     private final Map<UUID, List<ItemStack>> reclaimableItems = new HashMap<>();
-    private final Set<UUID> autoClaimPlayers = new HashSet<>();
     private final Map<UUID, List<Auction>> playerHistory = new HashMap<>();
 
     private final File dataFile;
@@ -74,12 +73,6 @@ public class AuctionManager {
             }
         }
 
-        if (data.isList("auto-claim")) {
-            for (String s : data.getStringList("auto-claim")) {
-                try { autoClaimPlayers.add(UUID.fromString(s)); } catch (IllegalArgumentException ignored) {}
-            }
-        }
-
         // Load history per player
         if (historyData.isConfigurationSection("players")) {
             for (String uuidStr : historyData.getConfigurationSection("players").getKeys(false)) {
@@ -101,6 +94,21 @@ public class AuctionManager {
             plugin.saveResource("categories.yml", false);
         }
         categoriesData = YamlConfiguration.loadConfiguration(categoriesFile);
+
+        // Migrate old pendingDeliveries to reclaimableItems
+        if (!pendingDeliveries.isEmpty()) {
+            for (Map.Entry<UUID, List<ItemStack>> entry : pendingDeliveries.entrySet()) {
+                UUID playerId = entry.getKey();
+                List<ItemStack> items = entry.getValue();
+                reclaimableItems.merge(playerId, items, (oldList, newList) -> {
+                    oldList.addAll(newList);
+                    return oldList;
+                });
+            }
+            pendingDeliveries.clear();
+            data.set("deliveries", null);
+            save();
+        }
     }
 
     public void save() {
@@ -120,10 +128,6 @@ public class AuctionManager {
             for (Map.Entry<UUID, List<ItemStack>> e : reclaimableItems.entrySet()) {
                 data.set("reclaims." + e.getKey().toString(), e.getValue());
             }
-
-            List<String> autoClaimList = new ArrayList<>();
-            for (UUID uuid : autoClaimPlayers) autoClaimList.add(uuid.toString());
-            data.set("auto-claim", autoClaimList);
 
             data.save(dataFile);
 
@@ -206,22 +210,6 @@ public class AuctionManager {
             if (items.isEmpty()) reclaimableItems.remove(player);
             save();
         }
-    }
-
-    public boolean toggleAutoClaim(UUID player) {
-        if (autoClaimPlayers.contains(player)) {
-            autoClaimPlayers.remove(player);
-            save();
-            return false;
-        } else {
-            autoClaimPlayers.add(player);
-            save();
-            return true;
-        }
-    }
-
-    public boolean hasAutoClaim(UUID player) {
-        return autoClaimPlayers.contains(player);
     }
 
     public static ItemStack stripCategoryLore(ItemStack item) {
@@ -326,18 +314,10 @@ public class AuctionManager {
         }
 
         if (a.type == Auction.Type.FIXED) {
-            // buy it now expired: return to seller
-            if (hasAutoClaim(a.seller)) {
-                addPendingDelivery(a.seller, stripCategoryLore(a.item));
-                MessagePlayer(a.seller, "Your listing expired. Item will be delivered when you rejoin.");
-            } else {
-                addReclaimableItem(a.seller, stripCategoryLore(a.item));
-                MessagePlayer(a.seller, "Your listing expired. Claim your item back from the Auction House!");
-            }
+            addReclaimableItem(a.seller, stripCategoryLore(a.item));
+            MessagePlayer(a.seller, "Your listing expired. Claim your item back from the Auction House!");
         } else {
-            // auction - if has bid, winner already precharged
             if (a.currentBidder != null) {
-                // give item to winner
                 Player winner = Bukkit.getPlayer(a.currentBidder);
                 if (winner != null && winner.isOnline()) {
                     winner.getInventory().addItem(stripCategoryLore(a.item));
@@ -345,18 +325,11 @@ public class AuctionManager {
                 } else {
                     addPendingDelivery(a.currentBidder, stripCategoryLore(a.item));
                 }
-                // pay seller
                 econ.depositPlayer(Bukkit.getOfflinePlayer(a.seller), a.currentBid);
                 MessagePlayer(a.seller, "Your item sold for " + a.currentBid);
             } else {
-                // no bids, return to seller
-                if (hasAutoClaim(a.seller)) {
-                    addPendingDelivery(a.seller, stripCategoryLore(a.item));
-                    MessagePlayer(a.seller, "Your auction ended with no bids. Item will be delivered when you rejoin.");
-                } else {
-                    addReclaimableItem(a.seller, stripCategoryLore(a.item));
-                    MessagePlayer(a.seller, "Your auction ended with no bids. Claim your item back from the Auction House!");
-                }
+                addReclaimableItem(a.seller, stripCategoryLore(a.item));
+                MessagePlayer(a.seller, "Your auction ended with no bids. Claim your item back from the Auction House!");
             }
         }
     }

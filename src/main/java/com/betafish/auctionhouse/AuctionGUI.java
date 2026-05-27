@@ -146,16 +146,6 @@ public class AuctionGUI implements Listener {
         claimBtn.setItemMeta(claimMeta);
         inv.setItem(0, claimBtn);
 
-        // Settings button
-        ItemStack settingsBtn = new ItemStack(Material.IRON_PICKAXE);
-        ItemMeta settingsMeta = settingsBtn.getItemMeta();
-        settingsMeta.setDisplayName(ChatColor.GRAY + "Settings");
-        List<String> settingsLore = new ArrayList<>();
-        settingsLore.add(ChatColor.GRAY + "Configure your auction house preferences");
-        settingsMeta.setLore(settingsLore);
-        settingsBtn.setItemMeta(settingsMeta);
-        inv.setItem(8, settingsBtn);
-
         p.openInventory(inv);
     }
 
@@ -219,43 +209,6 @@ public class AuctionGUI implements Listener {
         p.openInventory(inv);
     }
 
-    public static void openSettings(Player p, AuctionManager manager) {
-        if (!p.hasPermission("lost.auction")) {
-            p.sendMessage("You do not have permission to use the auction house.");
-            return;
-        }
-        Inventory inv = Bukkit.createInventory(null, 27, "Auction Settings");
-        ItemStack border = makeBorder();
-        for (int i = 0; i < 27; i++) inv.setItem(i, border.clone());
-
-        boolean autoClaim = manager.hasAutoClaim(p.getUniqueId());
-
-        // Auto-claim toggle
-        ItemStack toggleBtn = new ItemStack(Material.BARREL);
-        ItemMeta toggleMeta = toggleBtn.getItemMeta();
-        toggleMeta.setDisplayName((autoClaim ? ChatColor.GREEN : ChatColor.RED) + "Auto-Claim Items");
-        List<String> toggleLore = new ArrayList<>();
-        toggleLore.add(ChatColor.GRAY + "When your listings expire,");
-        if (autoClaim) {
-            toggleLore.add(ChatColor.GREEN + "Enabled: Items auto-deliver to you");
-        } else {
-            toggleLore.add(ChatColor.RED + "Disabled: Items go to Unclaimed Items");
-        }
-        toggleLore.add("");
-        toggleLore.add(ChatColor.GRAY + "Click to toggle");
-        toggleMeta.setLore(toggleLore);
-        toggleBtn.setItemMeta(toggleMeta);
-        inv.setItem(13, toggleBtn);
-
-        // Back button
-        ItemStack backBtn = new ItemStack(Material.BARRIER);
-        ItemMeta backMeta = backBtn.getItemMeta();
-        backMeta.setDisplayName(ChatColor.RED + "Back to Auction House");
-        backBtn.setItemMeta(backMeta);
-        inv.setItem(22, backBtn);
-
-        p.openInventory(inv);
-    }
 
     public static void openBrowseCategories(Player p, AuctionManager manager, int page) {
         if (!p.hasPermission("lost.auction")) {
@@ -614,6 +567,15 @@ public class AuctionGUI implements Listener {
         deleteMeta.setLore(deleteLore);
         deleteBtn.setItemMeta(deleteMeta);
         inv.setItem(4, deleteBtn);
+
+        ItemStack copyBtn = new ItemStack(Material.PAPER);
+        ItemMeta copyMeta = copyBtn.getItemMeta();
+        copyMeta.setDisplayName(ChatColor.LIGHT_PURPLE + "Copy Item");
+        List<String> copyLore = new ArrayList<>();
+        copyLore.add(ChatColor.GRAY + "Get a copy of this item");
+        copyMeta.setLore(copyLore);
+        copyBtn.setItemMeta(copyMeta);
+        inv.setItem(5, copyBtn);
 
         ItemStack infoItem = a.item.clone();
         ItemMeta infoMeta = infoItem.getItemMeta();
@@ -2005,9 +1967,6 @@ public class AuctionGUI implements Listener {
             } else if (clickedMeta.getDisplayName().equals(ChatColor.YELLOW + "Unclaimed Items")) {
                 openClaimMenu(p, manager, 0);
                 return;
-            } else if (clickedMeta.getDisplayName().equals(ChatColor.GRAY + "Settings")) {
-                openSettings(p, manager);
-                return;
             }
         }
     }
@@ -2064,28 +2023,6 @@ public class AuctionGUI implements Listener {
             openMain(p, manager);
         } else {
             openClaimMenu(p, manager, currentPage);
-        }
-    }
-
-    @EventHandler
-    public void onInventoryClickSettings(InventoryClickEvent e) {
-        if (!e.getView().getTitle().equals("Auction Settings")) return;
-        e.setCancelled(true);
-        if (!(e.getWhoClicked() instanceof Player)) return;
-        Player p = (Player) e.getWhoClicked();
-        if (!p.hasPermission("lost.auction")) { p.sendMessage("You do not have permission."); p.closeInventory(); return; }
-
-        ItemStack clicked = e.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.AIR) return;
-        ItemMeta clickedMeta = clicked.getItemMeta();
-        if (clickedMeta == null || !clickedMeta.hasDisplayName()) return;
-        String displayName = clickedMeta.getDisplayName();
-
-        if (displayName.endsWith("Auto-Claim Items")) {
-            manager.toggleAutoClaim(p.getUniqueId());
-            openSettings(p, manager);
-        } else if (displayName.equals(ChatColor.RED + "Back to Auction House")) {
-            openMain(p, manager);
         }
     }
 
@@ -2244,6 +2181,21 @@ public class AuctionGUI implements Listener {
                 p.sendMessage("[AuctionAdmin] Auction " + auctionId + " deleted.");
             else
                 p.sendMessage("[AuctionAdmin] Auction not found.");
+            adminSelectedAuction.remove(p);
+            p.closeInventory();
+        } else if (display.equals(ChatColor.LIGHT_PURPLE + "Copy Item")) {
+            Auction a = manager.getAuction(auctionId);
+            if (a != null) {
+                ItemStack copy = a.item.clone();
+                HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(copy);
+                for (ItemStack drop : overflow.values()) {
+                    p.getWorld().dropItemNaturally(p.getLocation(), drop);
+                }
+                Bukkit.getLogger().info("[AuctionAdmin] " + p.getName() + " copied item from auction " + auctionId + " (" + a.item.getType() + ")");
+                p.sendMessage("[AuctionAdmin] Copied item from auction " + auctionId + ".");
+            } else {
+                p.sendMessage("[AuctionAdmin] Auction not found.");
+            }
             adminSelectedAuction.remove(p);
             p.closeInventory();
         }
