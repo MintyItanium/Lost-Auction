@@ -17,6 +17,7 @@ public class AuctionManager {
     private final Economy econ;
     private final Map<String, Auction> auctions = new LinkedHashMap<>();
     private final Map<UUID, List<ItemStack>> pendingDeliveries = new HashMap<>();
+    private final Map<UUID, List<ItemStack>> reclaimableItems = new HashMap<>();
     private final Map<UUID, List<Auction>> playerHistory = new HashMap<>();
 
     private final File dataFile;
@@ -64,6 +65,14 @@ public class AuctionManager {
             }
         }
 
+        if (data.isConfigurationSection("reclaims")) {
+            for (String s : data.getConfigurationSection("reclaims").getKeys(false)) {
+                UUID u = UUID.fromString(s);
+                List<ItemStack> list = (List<ItemStack>) data.get("reclaims." + s);
+                reclaimableItems.put(u, list == null ? new ArrayList<>() : list);
+            }
+        }
+
         // Load history per player
         if (historyData.isConfigurationSection("players")) {
             for (String uuidStr : historyData.getConfigurationSection("players").getKeys(false)) {
@@ -85,6 +94,21 @@ public class AuctionManager {
             plugin.saveResource("categories.yml", false);
         }
         categoriesData = YamlConfiguration.loadConfiguration(categoriesFile);
+
+        // Migrate old pendingDeliveries to reclaimableItems
+        if (!pendingDeliveries.isEmpty()) {
+            for (Map.Entry<UUID, List<ItemStack>> entry : pendingDeliveries.entrySet()) {
+                UUID playerId = entry.getKey();
+                List<ItemStack> items = entry.getValue();
+                reclaimableItems.merge(playerId, items, (oldList, newList) -> {
+                    oldList.addAll(newList);
+                    return oldList;
+                });
+            }
+            pendingDeliveries.clear();
+            data.set("deliveries", null);
+            save();
+        }
     }
 
     public void save() {
@@ -98,6 +122,11 @@ public class AuctionManager {
             data.set("deliveries", null);
             for (Map.Entry<UUID, List<ItemStack>> e : pendingDeliveries.entrySet()) {
                 data.set("deliveries." + e.getKey().toString(), e.getValue());
+            }
+
+            data.set("reclaims", null);
+            for (Map.Entry<UUID, List<ItemStack>> e : reclaimableItems.entrySet()) {
+                data.set("reclaims." + e.getKey().toString(), e.getValue());
             }
 
             data.save(dataFile);
@@ -158,6 +187,29 @@ public class AuctionManager {
     public void addPendingDelivery(UUID player, ItemStack item) {
         pendingDeliveries.computeIfAbsent(player, k -> new ArrayList<>()).add(item);
         save();
+    }
+
+    public void addReclaimableItem(UUID player, ItemStack item) {
+        reclaimableItems.computeIfAbsent(player, k -> new ArrayList<>()).add(item.clone());
+        save();
+    }
+
+    public List<ItemStack> getReclaimableItems(UUID player) {
+        return reclaimableItems.getOrDefault(player, new ArrayList<>());
+    }
+
+    public boolean hasReclaimableItems(UUID player) {
+        List<ItemStack> items = reclaimableItems.get(player);
+        return items != null && !items.isEmpty();
+    }
+
+    public void removeReclaimableItem(UUID player, int index) {
+        List<ItemStack> items = reclaimableItems.get(player);
+        if (items != null && index >= 0 && index < items.size()) {
+            items.remove(index);
+            if (items.isEmpty()) reclaimableItems.remove(player);
+            save();
+        }
     }
 
     public static ItemStack stripCategoryLore(ItemStack item) {
@@ -262,18 +314,10 @@ public class AuctionManager {
         }
 
         if (a.type == Auction.Type.FIXED) {
-            // fixed price expired: return to seller
-            Player seller = Bukkit.getPlayer(a.seller);
-            if (seller != null && seller.isOnline()) {
-                seller.getInventory().addItem(stripCategoryLore(a.item));
-                seller.sendMessage("[Auction] Your listing expired and item was returned.");
-            } else {
-                addPendingDelivery(a.seller, stripCategoryLore(a.item));
-            }
+            addReclaimableItem(a.seller, stripCategoryLore(a.item));
+            MessagePlayer(a.seller, "Your listing expired. Claim your item back from the Auction House!");
         } else {
-            // auction - if has bid, winner already precharged
             if (a.currentBidder != null) {
-                // give item to winner
                 Player winner = Bukkit.getPlayer(a.currentBidder);
                 if (winner != null && winner.isOnline()) {
                     winner.getInventory().addItem(stripCategoryLore(a.item));
@@ -281,18 +325,11 @@ public class AuctionManager {
                 } else {
                     addPendingDelivery(a.currentBidder, stripCategoryLore(a.item));
                 }
-                // pay seller
                 econ.depositPlayer(Bukkit.getOfflinePlayer(a.seller), a.currentBid);
                 MessagePlayer(a.seller, "Your item sold for " + a.currentBid);
             } else {
-                // no bids, return to seller
-                Player seller = Bukkit.getPlayer(a.seller);
-                if (seller != null && seller.isOnline()) {
-                    seller.getInventory().addItem(stripCategoryLore(a.item));
-                    seller.sendMessage("[Auction] Your auction ended with no bids; item returned.");
-                } else {
-                    addPendingDelivery(a.seller, stripCategoryLore(a.item));
-                }
+                addReclaimableItem(a.seller, stripCategoryLore(a.item));
+                MessagePlayer(a.seller, "Your auction ended with no bids. Claim your item back from the Auction House!");
             }
         }
     }

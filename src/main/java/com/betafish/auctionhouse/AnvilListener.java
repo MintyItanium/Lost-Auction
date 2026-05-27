@@ -19,6 +19,8 @@ public class AnvilListener implements Listener {
     private static final Map<Player, String> awaitingAuction = new HashMap<>();
     private static final Map<Player, PendingListing> awaitingListing = new HashMap<>();
     private static final Map<Player, Boolean> awaitingSearch = new HashMap<>();
+    public static final Map<Player, Boolean> awaitingPriceFilterMin = new HashMap<>();
+    public static final Map<Player, Boolean> awaitingPriceFilterMax = new HashMap<>();
     public static final Map<Player, String> awaitingAdminBid = new HashMap<>();
     private final AuctionManager manager;
 
@@ -53,6 +55,18 @@ public class AnvilListener implements Listener {
         p.closeInventory();
         awaitingSearch.put(p, true);
     }
+    public static void openAnvilForPriceFilterMin(Player p, AuctionManager manager) {
+        p.sendMessage("\n\u00A76Auction House Price Filter\n\u00A7eEnter the minimum price in chat (or type 'none' for no minimum): \n");
+        p.closeInventory();
+        awaitingPriceFilterMin.put(p, true);
+    }
+
+    public static void openAnvilForPriceFilterMax(Player p, AuctionManager manager) {
+        p.sendMessage("\n\u00A76Auction House Price Filter\n\u00A7eEnter the maximum price in chat (or type 'none' for no maximum): \n");
+        p.closeInventory();
+        awaitingPriceFilterMax.put(p, true);
+    }
+
     public static void openAnvilForListing(Player p, ItemStack item, AuctionManager manager, Auction.Type type, String category) {
         p.sendMessage("\n\u00A76Auction House\n\u00A7ePlease enter the price in chat. \n");
         p.closeInventory();
@@ -136,6 +150,48 @@ public class AnvilListener implements Listener {
             // process on main thread
             Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
                 AuctionGUI.openSearchResults(p, manager, searchTerm, 0);
+            });
+            return;
+        }
+
+        if (awaitingPriceFilterMin.containsKey(p)) {
+            e.setCancelled(true);
+            String msg = e.getMessage();
+            awaitingPriceFilterMin.remove(p);
+            Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
+                String raw = msg.replaceAll("[^0-9\\.]", "");
+                double price;
+                if (msg.equalsIgnoreCase("none")) {
+                    AuctionGUI.setPriceFilterMin(p, 0.0);
+                } else {
+                    try { price = Double.parseDouble(raw); } catch (Exception ex) {
+                        p.sendMessage("Invalid price.");
+                        return;
+                    }
+                    AuctionGUI.setPriceFilterMin(p, price);
+                }
+                AuctionGUI.openPriceFilter(p, manager);
+            });
+            return;
+        }
+
+        if (awaitingPriceFilterMax.containsKey(p)) {
+            e.setCancelled(true);
+            String msg = e.getMessage();
+            awaitingPriceFilterMax.remove(p);
+            Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
+                String raw = msg.replaceAll("[^0-9\\.]", "");
+                double price;
+                if (msg.equalsIgnoreCase("none")) {
+                    AuctionGUI.setPriceFilterMax(p, Double.MAX_VALUE);
+                } else {
+                    try { price = Double.parseDouble(raw); } catch (Exception ex) {
+                        p.sendMessage("Invalid price.");
+                        return;
+                    }
+                    AuctionGUI.setPriceFilterMax(p, price);
+                }
+                AuctionGUI.openPriceFilter(p, manager);
             });
             return;
         }

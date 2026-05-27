@@ -2,7 +2,6 @@
 
 a Auction House plugin for Paper 1.21.x
 
-
 ## Requirements
 
 - Paper server 1.21.x or ShreddedPaper 1.21.11
@@ -11,7 +10,9 @@ a Auction House plugin for Paper 1.21.x
 - Java 21+
 
 ## Building and Testing
+
 Use **JDK 21** To build.
+
 ```bash
 mvn clean package
 ```
@@ -21,27 +22,29 @@ Place the jar file in "/target" into your server `plugins/` folder, along with V
 ## Features
 
 ### Core Auction System
+
 - **Fixed Price Selling**: Sell items at a set price - instant purchase
 - **Real Auctions**: Start with a minimum bid, accept higher bids until time expires
-- **Auction History**: Track all your past auctions and bids (WIP)
+- **Auction History**: Track all your past auctions and bids
 
-### Search & Filtering ()
-- **Item Search**: Search auctions by item name or display name
-- **Type Filtering**: Filter by Price (Coming Soon) or Auction types
-- **Category Filtering**: Browse auctions by configurable categories
-- **Real-time Results**: All filters work instantly with live auction data
+### Search & Filtering
+
+- **Item Search**: Search auctions by item name
+- **Price Filtering**: Filter by Price
+- **Category Filtering**: Browse auctions by categories
 
 ### Configuration Options
+
 - **Max Listings Per Player**: Prevent spam with configurable limits
-- **Categories**: Fully configurable auction categories (add/remove/edit)
-- **Auction Durations**: Set minimum and maximum auction times
-- **Economy Integration**: Full Vault economy support
+- **Categories**: Fully configurable auction categories throught `categories.yml`
 
 ### Administrative Tools
+
 - **Force End Auctions**: Admin command to end auctions early
 - **View All History**: Admin access to complete auction history (WIP)
 
 **Category Configuration:**
+
 - `name`: The display name shown to players
 - `item`: The Minecraft material used as the button icon
 - Add/remove categories as needed
@@ -50,31 +53,21 @@ Place the jar file in "/target" into your server `plugins/` folder, along with V
 ## Usage
 
 ### Player Commands
-- `/auction` — Open the auction house GUI
-- `/auction sell <price>` — Put item in your hand up for fixed-price sale
-- `/auction auction <starting_price>` — Put item in your hand up for bid-based auction
-- `/auction history` — View your personal auction history
-- `/auction search` — Open search and filter interface
 
-### Admin Commands
-- `/auctionadmin end <auction_id>` — Force-end a specific auction
-- `/auctionadmin history` — View complete auction history
 
-### GUI Navigation
-1. **Main Auction House**: Browse all active auctions
-2. **Search & Filter**: Access advanced filtering options
-   - Search by item name
-   - Filter by auction type (Fixed Price/Auction)
-   - Filter by category
-3. **Your History**: View all auctions you've participated in
-4. **List Item**: Select items from inventory to auction
-   - Choose item from inventory
-   - Select category for the auction
-   - Choose listing type (Fixed Price or Auction)
-   - Enter price/bid amount via chat input
+| Command                             |                                                | Permission                 |
+| ------------------------------------- | ------------------------------------------------ | ---------------------------- |
+| `/auction`                          | Open the auction house GUI                     | `lost.auction`             |
+| `/auction sell <price>`             | Put item in your hand up for fixed-price sale  | `lost.auction`             |
+| `/auction auction <starting_price>` | Put item in your hand up for bid-based auction | `lost.auction`             |
+| `/auction history`                  | View your personal auction history             | `lost.auction`             |
+| `/auction search`                   | Open search and filter interface               | `lost.auction`             |
+| `/auction autoclaim`                | Toggle autoclaiming auctions                   | `lost.auction`             |
+| `/auctionadmin`                     | Open admin panel for auctions                  | `lost.auction.admin`       |
+| `/auction fullhistory`              | View all auction history                       | `lost.auction.fullhistory` |
 
 ## Permissions
 
-- `lost.auction`: Use the auction house (default: all players)
-- `lost.auction.admin`: Administrative commands (default: operators)
+- `lost.auction`: Use the auction house and most commands (default: all players)
+- `lost.auction.admin`: Administrative commands for moderation staff (default: operators)
 - `lost.auction.fullhistory`: View all auction history (default: operators)
