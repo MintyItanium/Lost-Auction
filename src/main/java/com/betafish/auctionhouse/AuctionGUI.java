@@ -25,6 +25,8 @@ public class AuctionGUI implements Listener {
     private static final Map<Player, Auction.Type> pendingListingType = new HashMap<>();
     private static final Map<Player, Long> pendingPrice = new HashMap<>();
     private static final Map<Player, String> adminSelectedAuction = new HashMap<>();
+    private static final Map<Player, Double> priceFilterMin = new HashMap<>();
+    private static final Map<Player, Double> priceFilterMax = new HashMap<>();
 
     public AuctionGUI(AuctionManager m) { this.manager = m; }
 
@@ -128,6 +130,129 @@ public class AuctionGUI implements Listener {
         myListingsMeta.setLore(mlLore);
         myListingsBtn.setItemMeta(myListingsMeta);
         inv.setItem(4, myListingsBtn);
+
+        // Claim Items button
+        ItemStack claimBtn = new ItemStack(Material.HOPPER);
+        ItemMeta claimMeta = claimBtn.getItemMeta();
+        claimMeta.setDisplayName(ChatColor.YELLOW + "Unclaimed Items");
+        List<String> claimLore = new ArrayList<>();
+        int claimCount = manager.getReclaimableItems(p.getUniqueId()).size();
+        if (claimCount > 0) {
+            claimLore.add(ChatColor.GREEN + "You have " + claimCount + " item(s) to claim!");
+        } else {
+            claimLore.add(ChatColor.GRAY + "No items to claim");
+        }
+        claimMeta.setLore(claimLore);
+        claimBtn.setItemMeta(claimMeta);
+        inv.setItem(0, claimBtn);
+
+        // Settings button
+        ItemStack settingsBtn = new ItemStack(Material.IRON_PICKAXE);
+        ItemMeta settingsMeta = settingsBtn.getItemMeta();
+        settingsMeta.setDisplayName(ChatColor.GRAY + "Settings");
+        List<String> settingsLore = new ArrayList<>();
+        settingsLore.add(ChatColor.GRAY + "Configure your auction house preferences");
+        settingsMeta.setLore(settingsLore);
+        settingsBtn.setItemMeta(settingsMeta);
+        inv.setItem(8, settingsBtn);
+
+        p.openInventory(inv);
+    }
+
+    public static void openClaimMenu(Player p, AuctionManager manager, int page) {
+        if (!p.hasPermission("lost.auction")) {
+            p.sendMessage("You do not have permission to use the auction house.");
+            return;
+        }
+        Inventory inv = Bukkit.createInventory(null, 54, "Claim Items - Page " + (page + 1));
+        ItemStack border = makeBorder();
+        for (int i = 0; i <= 8; i++) inv.setItem(i, border.clone());
+        for (int i = 45; i <= 53; i++) inv.setItem(i, border.clone());
+        for (int row = 1; row <= 4; row++) {
+            inv.setItem(row * 9, border.clone());
+            inv.setItem(row * 9 + 8, border.clone());
+        }
+        setBalanceItem(inv, p, manager, 4);
+
+        List<ItemStack> items = manager.getReclaimableItems(p.getUniqueId());
+        int itemsPerPage = 28;
+        int startIndex = page * itemsPerPage;
+        int endIndex = Math.min(startIndex + itemsPerPage, items.size());
+
+        for (int i = startIndex; i < endIndex; i++) {
+            int idx = i - startIndex;
+            int row = idx / 7 + 1;
+            int col = idx % 7 + 1;
+            ItemStack display = items.get(i).clone();
+            ItemMeta meta = display.hasItemMeta() ? display.getItemMeta() : Bukkit.getItemFactory().getItemMeta(display.getType());
+            List<String> lore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
+            lore.add("");
+            lore.add(ChatColor.YELLOW + "Click to claim this item");
+            meta.setLore(lore);
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(display.getType());
+            meta.setDisplayName(ChatColor.GREEN + itemName);
+            display.setItemMeta(meta);
+            inv.setItem(row * 9 + col, display);
+        }
+
+        if (page > 0) {
+            ItemStack prevBtn = new ItemStack(Material.ARROW);
+            ItemMeta prevMeta = prevBtn.getItemMeta();
+            prevMeta.setDisplayName(ChatColor.YELLOW + "Previous Page");
+            prevBtn.setItemMeta(prevMeta);
+            inv.setItem(45, prevBtn);
+        }
+        if (endIndex < items.size()) {
+            ItemStack nextBtn = new ItemStack(Material.ARROW);
+            ItemMeta nextMeta = nextBtn.getItemMeta();
+            nextMeta.setDisplayName(ChatColor.YELLOW + "Next Page");
+            nextBtn.setItemMeta(nextMeta);
+            inv.setItem(53, nextBtn);
+        }
+
+        ItemStack backBtn = new ItemStack(Material.BARRIER);
+        ItemMeta backMeta = backBtn.getItemMeta();
+        backMeta.setDisplayName(ChatColor.RED + "Back to Auction House");
+        backBtn.setItemMeta(backMeta);
+        inv.setItem(49, backBtn);
+
+        p.openInventory(inv);
+    }
+
+    public static void openSettings(Player p, AuctionManager manager) {
+        if (!p.hasPermission("lost.auction")) {
+            p.sendMessage("You do not have permission to use the auction house.");
+            return;
+        }
+        Inventory inv = Bukkit.createInventory(null, 27, "Auction Settings");
+        ItemStack border = makeBorder();
+        for (int i = 0; i < 27; i++) inv.setItem(i, border.clone());
+
+        boolean autoClaim = manager.hasAutoClaim(p.getUniqueId());
+
+        // Auto-claim toggle
+        ItemStack toggleBtn = new ItemStack(Material.BARREL);
+        ItemMeta toggleMeta = toggleBtn.getItemMeta();
+        toggleMeta.setDisplayName((autoClaim ? ChatColor.GREEN : ChatColor.RED) + "Auto-Claim Items");
+        List<String> toggleLore = new ArrayList<>();
+        toggleLore.add(ChatColor.GRAY + "When your listings expire,");
+        if (autoClaim) {
+            toggleLore.add(ChatColor.GREEN + "Enabled: Items auto-deliver to you");
+        } else {
+            toggleLore.add(ChatColor.RED + "Disabled: Items go to Unclaimed Items");
+        }
+        toggleLore.add("");
+        toggleLore.add(ChatColor.GRAY + "Click to toggle");
+        toggleMeta.setLore(toggleLore);
+        toggleBtn.setItemMeta(toggleMeta);
+        inv.setItem(13, toggleBtn);
+
+        // Back button
+        ItemStack backBtn = new ItemStack(Material.BARRIER);
+        ItemMeta backMeta = backBtn.getItemMeta();
+        backMeta.setDisplayName(ChatColor.RED + "Back to Auction House");
+        backBtn.setItemMeta(backMeta);
+        inv.setItem(22, backBtn);
 
         p.openInventory(inv);
     }
@@ -270,7 +395,7 @@ public class AuctionGUI implements Listener {
             ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : Bukkit.getItemFactory().getItemMeta(item.getType());
             List<String> lore = new ArrayList<>();
             if (a.type == Auction.Type.FIXED) lore.add("Price: " + a.startingPrice);
-            else lore.add("Current bid: " + a.currentBid + (a.currentBidder == null ? " (no bids)" : ""));
+            else lore.add("Current bid: " + (a.currentBidder == null ? a.startingPrice : a.currentBid));
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             lore.add("Seller: " + getPlayerName(a.seller));
@@ -420,7 +545,7 @@ public class AuctionGUI implements Listener {
             lore.add("Seller: " + getPlayerName(a.seller));
             lore.add("Type: " + a.type.name());
             if (a.type == Auction.Type.FIXED) lore.add("Price: " + a.startingPrice);
-            else lore.add("Current bid: " + a.currentBid + (a.currentBidder == null ? " (no bids)" : ""));
+            else lore.add("Current bid: " + (a.currentBidder == null ? a.startingPrice : a.currentBid));
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             lore.add("");
@@ -535,6 +660,17 @@ public class AuctionGUI implements Listener {
         priceFilterBtn.setItemMeta(priceFilterMeta);
         inv.setItem(12, priceFilterBtn);
 
+        // Filter by auction type button
+        ItemStack typeFilterBtn = new ItemStack(Material.ANVIL);
+        ItemMeta typeFilterMeta = typeFilterBtn.getItemMeta();
+        typeFilterMeta.setDisplayName(ChatColor.BLUE + "Filter by Auction Type");
+        List<String> tfLore = new ArrayList<>();
+        tfLore.add("Click to filter by auction type");
+        tfLore.add("View only buy it now or only auctions");
+        typeFilterMeta.setLore(tfLore);
+        typeFilterBtn.setItemMeta(typeFilterMeta);
+        inv.setItem(14, typeFilterBtn);
+
         // Filter by category button
         ItemStack categoryFilterBtn = new ItemStack(Material.BOOKSHELF);
         ItemMeta categoryFilterMeta = categoryFilterBtn.getItemMeta();
@@ -588,7 +724,7 @@ public class AuctionGUI implements Listener {
             ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : Bukkit.getItemFactory().getItemMeta(item.getType());
             List<String> lore = new ArrayList<>();
             if (a.type == Auction.Type.FIXED) lore.add("Price: " + a.startingPrice);
-            else lore.add("Current bid: " + a.currentBid + (a.currentBidder == null ? " (no bids)" : ""));
+            else lore.add("Current bid: " + (a.currentBidder == null ? a.startingPrice : a.currentBid));
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             lore.add("Seller: " + getPlayerName(a.seller));
@@ -688,7 +824,7 @@ public class AuctionGUI implements Listener {
             ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : Bukkit.getItemFactory().getItemMeta(item.getType());
             List<String> lore = new ArrayList<>();
             lore.add("ID: " + a.id);
-            lore.add("Type: " + (a.type == Auction.Type.FIXED ? "Fixed Price" : "Auction"));
+            lore.add("Type: " + (a.type == Auction.Type.FIXED ? "Buy it Now" : "Auction"));
 
             boolean isActive = manager.getAuction(a.id) != null;
             if (isActive) {
@@ -763,7 +899,7 @@ public class AuctionGUI implements Listener {
             if (a.currentBidder != null) {
                 lore.add("Winner: " + getPlayerName(a.currentBidder));
             }
-            lore.add("Type: " + (a.type == Auction.Type.FIXED ? "Fixed Price" : "Auction"));
+            lore.add("Type: " + (a.type == Auction.Type.FIXED ? "Buy it Now" : "Auction"));
 
             boolean isActive = manager.getAuction(a.id) != null;
             if (isActive) {
@@ -835,12 +971,12 @@ public class AuctionGUI implements Listener {
             ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : Bukkit.getItemFactory().getItemMeta(item.getType());
             List<String> lore = new ArrayList<>();
             lore.add(ChatColor.GRAY + "ID: " + a.id);
-            lore.add(ChatColor.GRAY + "Type: " + (a.type == Auction.Type.FIXED ? "Fixed Price" : "Auction"));
+            lore.add(ChatColor.GRAY + "Type: " + (a.type == Auction.Type.FIXED ? "Buy it Now" : "Auction"));
             if (a.type == Auction.Type.FIXED) {
                 lore.add(ChatColor.GRAY + "Price: $" + a.startingPrice);
             } else {
                 lore.add(ChatColor.GRAY + "Starting: $" + a.startingPrice);
-                lore.add(ChatColor.GRAY + "Current bid: $" + a.currentBid + (a.currentBidder == null ? " (no bids)" : ""));
+                lore.add(ChatColor.GRAY + "Current bid: $" + (a.currentBidder == null ? a.startingPrice : a.currentBid));
             }
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add(ChatColor.GRAY + "Ends in: " + formatDuration(remaining));
@@ -963,9 +1099,7 @@ public class AuctionGUI implements Listener {
             if (displayName.equals(ChatColor.YELLOW + "Search by Item Name")) {
                 AnvilListener.openAnvilForSearch(p, manager);
             } else if (displayName.equals(ChatColor.GOLD + "Filter by Price Range")) {
-                // I don't really know to to get price filtering to work yet, but I hope to add it soon.
-                p.sendMessage("[Auction] Price filtering isn't here yet, but might be soon. -Minty"); // Might just disable/hide the button for it
-                p.closeInventory();
+                openPriceFilter(p, manager);
             } else if (displayName.equals(ChatColor.BLUE + "Filter by Auction Type")) {
                 openTypeFilter(p, manager);
             } else if (displayName.equals(ChatColor.LIGHT_PURPLE + "Filter by Category")) {
@@ -1075,7 +1209,7 @@ public class AuctionGUI implements Listener {
         ItemMeta clickedMeta = clicked.getItemMeta();
         if (clickedMeta != null && clickedMeta.hasDisplayName()) {
             String displayName = clickedMeta.getDisplayName();
-            if (displayName.equals(ChatColor.GOLD + "Show Fixed Price Only")) {
+            if (displayName.equals(ChatColor.GOLD + "Show Buy it now Only")) {
                 openFilteredAuctions(p, manager, Auction.Type.FIXED, 0);
             } else if (displayName.equals(ChatColor.GREEN + "Show Auctions Only")) {
                 openFilteredAuctions(p, manager, Auction.Type.AUCTION, 0);
@@ -1083,6 +1217,111 @@ public class AuctionGUI implements Listener {
                 openSearch(p, manager);
             }
         }
+    }
+
+    @EventHandler
+    public void onInventoryClickPriceFilter(InventoryClickEvent e) {
+        if (!e.getView().getTitle().equals("Filter by Price Range")) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player)) return;
+        Player p = (Player) e.getWhoClicked();
+
+        ItemStack clicked = e.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
+        ItemMeta clickedMeta = clicked.getItemMeta();
+        if (clickedMeta == null || !clickedMeta.hasDisplayName()) return;
+        String displayName = clickedMeta.getDisplayName();
+
+        if (displayName.equals(ChatColor.RED + "Set Minimum Price")) {
+            AnvilListener.openAnvilForPriceFilterMin(p, manager);
+        } else if (displayName.equals(ChatColor.GREEN + "Set Maximum Price")) {
+            AnvilListener.openAnvilForPriceFilterMax(p, manager);
+        } else if (displayName.equals(ChatColor.GREEN + "Apply Price Filter")) {
+            openFilteredByPrice(p, manager, 0);
+        } else if (displayName.equals(ChatColor.RED + "Clear Price Filter")) {
+            priceFilterMin.remove(p);
+            priceFilterMax.remove(p);
+            openPriceFilter(p, manager);
+        } else if (displayName.equals(ChatColor.RED + "Back to Search")) {
+            openSearch(p, manager);
+        }
+    }
+
+    public static void openPriceFilter(Player p, AuctionManager manager) {
+        Inventory inv = Bukkit.createInventory(null, 27, "Filter by Price Range");
+        ItemStack border = makeBorder();
+        for (int i = 0; i < 27; i++) inv.setItem(i, border.clone());
+
+        // Info display
+        ItemStack infoItem = new ItemStack(Material.GOLD_INGOT);
+        ItemMeta infoMeta = infoItem.getItemMeta();
+        infoMeta.setDisplayName(ChatColor.GOLD + "Price Range Filter");
+        List<String> infoLore = new ArrayList<>();
+        double min = priceFilterMin.getOrDefault(p, 0.0);
+        double max = priceFilterMax.getOrDefault(p, Double.MAX_VALUE);
+        infoLore.add(ChatColor.GRAY + "Set a minimum and/or maximum price");
+        infoLore.add("");
+        infoLore.add(ChatColor.YELLOW + "Min: " + (min > 0 ? "$" + String.format("%.2f", min) : "No minimum"));
+        infoLore.add(ChatColor.YELLOW + "Max: " + (max < Double.MAX_VALUE ? "$" + String.format("%.2f", max) : "No maximum"));
+        infoMeta.setLore(infoLore);
+        infoItem.setItemMeta(infoMeta);
+        inv.setItem(13, infoItem);
+
+        // Min price button
+        ItemStack minBtn = new ItemStack(Material.REDSTONE);
+        ItemMeta minMeta = minBtn.getItemMeta();
+        minMeta.setDisplayName(ChatColor.RED + "Set Minimum Price");
+        List<String> minLore = new ArrayList<>();
+        minLore.add(ChatColor.GRAY + "Click to set minimum price in chat");
+        minLore.add(ChatColor.YELLOW + "Current: " + (min > 0 ? "$" + String.format("%.2f", min) : "None"));
+        minMeta.setLore(minLore);
+        minBtn.setItemMeta(minMeta);
+        inv.setItem(11, minBtn);
+
+        // Max price button
+        ItemStack maxBtn = new ItemStack(Material.EMERALD);
+        ItemMeta maxMeta = maxBtn.getItemMeta();
+        maxMeta.setDisplayName(ChatColor.GREEN + "Set Maximum Price");
+        List<String> maxLore = new ArrayList<>();
+        maxLore.add(ChatColor.GRAY + "Click to set maximum price in chat");
+        maxLore.add(ChatColor.YELLOW + "Current: " + (max < Double.MAX_VALUE ? "$" + String.format("%.2f", max) : "None"));
+        maxMeta.setLore(maxLore);
+        maxBtn.setItemMeta(maxMeta);
+        inv.setItem(15, maxBtn);
+
+        // Apply button
+        ItemStack applyBtn = new ItemStack(Material.LIME_DYE);
+        ItemMeta applyMeta = applyBtn.getItemMeta();
+        applyMeta.setDisplayName(ChatColor.GREEN + "Apply Price Filter");
+        List<String> applyLore = new ArrayList<>();
+        applyLore.add(ChatColor.GRAY + "Show results for the set price range");
+        applyMeta.setLore(applyLore);
+        applyBtn.setItemMeta(applyMeta);
+        inv.setItem(21, applyBtn);
+
+        // Clear button
+        ItemStack clearBtn = new ItemStack(Material.BARRIER);
+        ItemMeta clearMeta = clearBtn.getItemMeta();
+        clearMeta.setDisplayName(ChatColor.RED + "Clear Price Filter");
+        clearBtn.setItemMeta(clearMeta);
+        inv.setItem(22, clearBtn);
+
+        // Back button
+        ItemStack backBtn = new ItemStack(Material.ARROW);
+        ItemMeta backMeta = backBtn.getItemMeta();
+        backMeta.setDisplayName(ChatColor.RED + "Back to Search");
+        backBtn.setItemMeta(backMeta);
+        inv.setItem(23, backBtn);
+
+        p.openInventory(inv);
+    }
+
+    public static void setPriceFilterMin(Player p, double min) {
+        priceFilterMin.put(p, min);
+    }
+
+    public static void setPriceFilterMax(Player p, double max) {
+        priceFilterMax.put(p, max);
     }
 
     public static void openFilteredAuctions(Player p, AuctionManager manager, Auction.Type filterType, int page) {
@@ -1102,7 +1341,7 @@ public class AuctionGUI implements Listener {
             ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : Bukkit.getItemFactory().getItemMeta(item.getType());
             List<String> lore = new ArrayList<>();
             if (filterType == Auction.Type.FIXED) lore.add("Price: " + a.startingPrice);
-            else lore.add("Current bid: " + a.currentBid + (a.currentBidder == null ? " (no bids)" : ""));
+            else lore.add("Current bid: " + (a.currentBidder == null ? a.startingPrice : a.currentBid));
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             lore.add("Seller: " + getPlayerName(a.seller));
@@ -1132,6 +1371,64 @@ public class AuctionGUI implements Listener {
         }
         
         // Back button
+        ItemStack backBtn = new ItemStack(Material.BARRIER);
+        ItemMeta backMeta = backBtn.getItemMeta();
+        backMeta.setDisplayName(ChatColor.RED + "Back to Search");
+        backBtn.setItemMeta(backMeta);
+        inv.setItem(49, backBtn);
+
+        p.openInventory(inv);
+    }
+
+    public static void openFilteredByPrice(Player p, AuctionManager manager, int page) {
+        Inventory inv = Bukkit.createInventory(null, 54, "Price Filtered - Page " + (page + 1));
+        List<Auction> filteredResults = new ArrayList<>();
+        double min = priceFilterMin.getOrDefault(p, 0.0);
+        double max = priceFilterMax.getOrDefault(p, Double.MAX_VALUE);
+        for (Auction a : manager.listAuctions()) {
+            double price = a.type == Auction.Type.FIXED ? a.startingPrice : a.currentBid;
+            if (price >= min && price <= max) {
+                filteredResults.add(a);
+            }
+        }
+        int itemsPerPage = 45;
+        int startIndex = page * itemsPerPage;
+        int endIndex = Math.min(startIndex + itemsPerPage, filteredResults.size());
+
+        int slot = 0;
+        for (int i = startIndex; i < endIndex; i++) {
+            Auction a = filteredResults.get(i);
+            ItemStack item = a.item.clone();
+            ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : Bukkit.getItemFactory().getItemMeta(item.getType());
+            List<String> lore = new ArrayList<>();
+            if (a.type == Auction.Type.FIXED) lore.add("Price: " + a.startingPrice);
+            else lore.add("Current bid: " + (a.currentBidder == null ? a.startingPrice : a.currentBid));
+            long remaining = a.endTime - System.currentTimeMillis();
+            lore.add("Ends in: " + formatDuration(remaining));
+            lore.add("Seller: " + getPlayerName(a.seller));
+            meta.setLore(lore);
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
+            meta.setDisplayName(ChatColor.GREEN + itemName);
+            item.setItemMeta(meta);
+            inv.setItem(slot++, item);
+        }
+
+        if (page > 0) {
+            ItemStack prevBtn = new ItemStack(Material.ARROW);
+            ItemMeta prevMeta = prevBtn.getItemMeta();
+            prevMeta.setDisplayName(ChatColor.YELLOW + "Previous Page");
+            prevBtn.setItemMeta(prevMeta);
+            inv.setItem(48, prevBtn);
+        }
+
+        if (endIndex < filteredResults.size()) {
+            ItemStack nextBtn = new ItemStack(Material.ARROW);
+            ItemMeta nextMeta = nextBtn.getItemMeta();
+            nextMeta.setDisplayName(ChatColor.YELLOW + "Next Page");
+            nextBtn.setItemMeta(nextMeta);
+            inv.setItem(50, nextBtn);
+        }
+
         ItemStack backBtn = new ItemStack(Material.BARRIER);
         ItemMeta backMeta = backBtn.getItemMeta();
         backMeta.setDisplayName(ChatColor.RED + "Back to Search");
@@ -1286,6 +1583,71 @@ public class AuctionGUI implements Listener {
     }
 
     @EventHandler
+    public void onInventoryClickFilteredByPrice(InventoryClickEvent e) {
+        if (!e.getView().getTitle().startsWith("Price Filtered - Page ")) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player)) return;
+        Player p = (Player) e.getWhoClicked();
+
+        ItemStack clicked = e.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
+
+        ItemMeta clickedMeta = clicked.getItemMeta();
+        if (clickedMeta != null && clickedMeta.hasDisplayName()) {
+            String displayName = clickedMeta.getDisplayName();
+            if (displayName.equals(ChatColor.YELLOW + "Previous Page")) {
+                int currentPage = Integer.parseInt(e.getView().getTitle().substring("Price Filtered - Page ".length())) - 1;
+                openFilteredByPrice(p, manager, currentPage - 1);
+                return;
+            } else if (displayName.equals(ChatColor.YELLOW + "Next Page")) {
+                int currentPage = Integer.parseInt(e.getView().getTitle().substring("Price Filtered - Page ".length())) - 1;
+                openFilteredByPrice(p, manager, currentPage + 1);
+                return;
+            } else if (displayName.equals(ChatColor.RED + "Back to Search")) {
+                openSearch(p, manager);
+                return;
+            }
+        }
+
+        int slot = e.getSlot();
+        if (slot < 0 || slot >= 45) return;
+
+        double min = priceFilterMin.getOrDefault(p, 0.0);
+        double max = priceFilterMax.getOrDefault(p, Double.MAX_VALUE);
+        int currentPage = Integer.parseInt(e.getView().getTitle().substring("Price Filtered - Page ".length())) - 1;
+        int startIndex = currentPage * 45;
+
+        List<Auction> filteredResults = new ArrayList<>();
+        for (Auction a : manager.listAuctions()) {
+            double price = a.type == Auction.Type.FIXED ? a.startingPrice : a.currentBid;
+            if (price >= min && price <= max) {
+                filteredResults.add(a);
+            }
+        }
+
+        int auctionIndex = startIndex + slot;
+        if (auctionIndex >= filteredResults.size()) return;
+        Auction a = filteredResults.get(auctionIndex);
+
+        if (a.seller.equals(p.getUniqueId())) {
+            p.sendMessage(ChatColor.RED + "[Auction] You cannot bid on or buy your own listing.");
+            return;
+        }
+
+        if (a.type == Auction.Type.FIXED) {
+            double price = a.startingPrice;
+            if (!manager.getEconomy().has(p, price)) { p.sendMessage("You cannot afford this item."); return; }
+            manager.getEconomy().withdrawPlayer(p, price);
+            manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
+            if (p.isOnline()) p.getInventory().addItem(AuctionManager.stripCategoryLore(a.item));
+            manager.removeAuction(a.id);
+            p.sendMessage("[Auction] You bought item for " + price);
+        } else {
+            AnvilListener.openAnvilForBid(p, a, manager);
+        }
+    }
+
+    @EventHandler
     public void onInventoryClickCategoryFilter(InventoryClickEvent e) {
         if (!e.getView().getTitle().equals("Filter by Category")) return;
         e.setCancelled(true);
@@ -1332,7 +1694,7 @@ public class AuctionGUI implements Listener {
             ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : Bukkit.getItemFactory().getItemMeta(item.getType());
             List<String> lore = new ArrayList<>();
             if (a.type == Auction.Type.FIXED) lore.add("Price: " + a.startingPrice);
-            else lore.add("Current bid: " + a.currentBid + (a.currentBidder == null ? " (no bids)" : ""));
+            else lore.add("Current bid: " + (a.currentBidder == null ? a.startingPrice : a.currentBid));
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             lore.add("Category: " + a.category);
@@ -1640,7 +2002,90 @@ public class AuctionGUI implements Listener {
             } else if (clickedMeta.getDisplayName().equals(ChatColor.GOLD + "My Listings")) {
                 openMyListings(p, manager, 0);
                 return;
+            } else if (clickedMeta.getDisplayName().equals(ChatColor.YELLOW + "Unclaimed Items")) {
+                openClaimMenu(p, manager, 0);
+                return;
+            } else if (clickedMeta.getDisplayName().equals(ChatColor.GRAY + "Settings")) {
+                openSettings(p, manager);
+                return;
             }
+        }
+    }
+
+    @EventHandler
+    public void onInventoryClickClaimMenu(InventoryClickEvent e) {
+        if (!e.getView().getTitle().startsWith("Claim Items - Page ")) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player)) return;
+        Player p = (Player) e.getWhoClicked();
+        if (!p.hasPermission("lost.auction")) { p.sendMessage("You do not have permission."); p.closeInventory(); return; }
+
+        ItemStack clicked = e.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
+        ItemMeta clickedMeta = clicked.getItemMeta();
+        if (clickedMeta == null || !clickedMeta.hasDisplayName()) return;
+        String displayName = clickedMeta.getDisplayName();
+
+        int currentPage = 0;
+        try {
+            currentPage = Integer.parseInt(e.getView().getTitle().substring("Claim Items - Page ".length())) - 1;
+        } catch (NumberFormatException ignored) {}
+
+        if (displayName.equals(ChatColor.RED + "Back to Auction House")) {
+            openMain(p, manager);
+            return;
+        } else if (displayName.equals(ChatColor.YELLOW + "Previous Page")) {
+            openClaimMenu(p, manager, Math.max(0, currentPage - 1));
+            return;
+        } else if (displayName.equals(ChatColor.YELLOW + "Next Page")) {
+            openClaimMenu(p, manager, currentPage + 1);
+            return;
+        }
+
+        int slot = e.getSlot();
+        int row = slot / 9;
+        int col = slot % 9;
+        if (row < 1 || row > 4 || col < 1 || col > 7) return;
+        int idx = (row - 1) * 7 + (col - 1);
+
+        List<ItemStack> items = manager.getReclaimableItems(p.getUniqueId());
+        int itemIndex = currentPage * 28 + idx;
+        if (itemIndex >= items.size()) return;
+        ItemStack claimed = items.get(itemIndex);
+
+        manager.removeReclaimableItem(p.getUniqueId(), itemIndex);
+        HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(AuctionManager.stripCategoryLore(claimed));
+        for (ItemStack drop : overflow.values()) {
+            p.getWorld().dropItemNaturally(p.getLocation(), drop);
+        }
+        p.sendMessage(ChatColor.GREEN + "[Auction] Claimed item.");
+
+        if (manager.getReclaimableItems(p.getUniqueId()).isEmpty()) {
+            openMain(p, manager);
+        } else {
+            openClaimMenu(p, manager, currentPage);
+        }
+    }
+
+    @EventHandler
+    public void onInventoryClickSettings(InventoryClickEvent e) {
+        if (!e.getView().getTitle().equals("Auction Settings")) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player)) return;
+        Player p = (Player) e.getWhoClicked();
+        if (!p.hasPermission("lost.auction")) { p.sendMessage("You do not have permission."); p.closeInventory(); return; }
+
+        ItemStack clicked = e.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
+        ItemMeta clickedMeta = clicked.getItemMeta();
+        if (clickedMeta == null || !clickedMeta.hasDisplayName()) return;
+        String displayName = clickedMeta.getDisplayName();
+
+        if (displayName.endsWith("Auto-Claim Items")) {
+            manager.toggleAutoClaim(p.getUniqueId());
+            openSettings(p, manager);
+        } else if (displayName.equals(ChatColor.RED + "Back to Auction House")) {
+            openMain(p, manager);
         }
     }
 

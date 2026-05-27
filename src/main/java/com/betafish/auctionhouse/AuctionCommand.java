@@ -30,12 +30,12 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage(mm.deserialize("<red>Only players may use this command, I'm a fish, not a magic fish."));
+            sender.sendMessage(mm.deserialize("<red>Only players may use this command."));
             return true;
         }
         Player p = (Player) sender;
         if (!p.hasPermission("lost.auction")) {
-            p.sendMessage(mm.deserialize("<red>You do not have permission to use the auction house."));
+            p.sendMessage(mm.deserialize("<red>You do not have permission to use this command"));
             return true;
         }
         if (args.length == 0) {
@@ -49,12 +49,20 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
             if (subcommand.equals("history")) {
                 AuctionGUI.openHistory(p, manager, 0);
                 return true;
-            } else if (subcommand.equals("allhistory")) {
+            } else if (subcommand.equals("allhistory") || subcommand.equals("fullhistory")) {
                 if (!p.hasPermission("lost.auction.fullhistory")) {
-                    p.sendMessage(mm.deserialize("<red>You do not have permission to view all auction history."));
+                    p.sendMessage(mm.deserialize("<red>You do not have permission to use this command"));
                     return true;
                 }
                 AuctionGUI.openAllHistory(p, manager, 0);
+                return true;
+            } else if (subcommand.equals("autoclaim")) {
+                boolean enabled = manager.toggleAutoClaim(p.getUniqueId());
+                if (enabled) {
+                    p.sendMessage(mm.deserialize("<green>[Auction] Auto-claim enabled. Expired items will be auto-delivered <yellow> when your inventory has space."));
+                } else {
+                    p.sendMessage(mm.deserialize("<yellow>[Auction] Auto-claim disabled. Expired items go to Unclaimed Items."));
+                }
                 return true;
             }
         }
@@ -73,7 +81,7 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
                         return true;
                     }
                     easterEggCooldown.put(uid, now);
-                    salmonRain(p);
+                    fishcurse(p);
                     return true;
                 }
             }
@@ -84,10 +92,10 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
             ItemStack inHand = p.getInventory().getItemInMainHand();
             if (inHand == null || inHand.getType().isAir()) { p.sendMessage(mm.deserialize("<green>Hold an item in your main hand to list it.")); return true; }
 
-            long duration = manager.getPlugin().getConfig().getLong("default-duration-hours", 24) * 3600L * 1000L; // I'm not sure if this math works or not
+            long duration = manager.getPlugin().getConfig().getLong("default-duration-hours", 24) * 3600L * 1000L;
 
             if (mode.equals("sell")) {
-                // fixed price
+                // buy it now
                 inHand = inHand.clone();
                 p.getInventory().setItemInMainHand(null);
                 try {
@@ -112,7 +120,7 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        p.sendMessage(mm.deserialize("<yellow>Usage: <green>/auction <white>OR <green>/auction sell <price><white> OR <green>/auction auction <startingPrice><white> OR <green>/auction history <white>OR <green>/auction allhistory"));
+        p.sendMessage(mm.deserialize("<yellow>Usage: <green>/auction <white>OR <green>/auction sell <price><white> OR <green>/auction auction <startingPrice><white> OR <green>/auction history <white>OR <green>/auction fullhistory <white>OR <green>/auction autoclaim"));
         return true;
     }
 
@@ -132,17 +140,16 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
             if ("sell".startsWith(partial)) completions.add("sell");
             if ("auction".startsWith(partial)) completions.add("auction");
             if ("history".startsWith(partial)) completions.add("history");
-            if ("allhistory".startsWith(partial) && player.hasPermission("lost.auction.fullhistory")) {
-                completions.add("allhistory");
+            if ("autoclaim".startsWith(partial)) completions.add("autoclaim");
+            if ("fullhistory".startsWith(partial) && player.hasPermission("lost.auction.fullhistory")) {
+                completions.add("fullhistory");
             }
         }
-        // For sell and auction commands, I want to see if it can suggest prices,
-        // but that's too complex for me to do right now, so maybe in the future.
 
         return completions;
     }
 
-    private void salmonRain(Player p) {
+    private void fishcurse(Player p) {
         p.sendMessage(mm.deserialize("<red>May the fishes have mercy on you."));
         org.bukkit.Location loc = p.getLocation();
         List<Salmon> salmons = new ArrayList<>();
