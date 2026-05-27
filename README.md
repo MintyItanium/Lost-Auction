@@ -59,7 +59,7 @@ Place the jar file in "/target" into your server `plugins/` folder, along with V
 | ------------------------------------- | ------------------------------------------------ | ---------------------------- |
 | `/auction`                          | Open the auction house GUI                     | `lost.auction`             |
 | `/auction sell <price>`             | Put item in your hand up for fixed-price sale  | `lost.auction`             |
-| `/auction auction <starting_price>` | Put item in your hand up for bid-based auction | `lost.auction`             |
+| `/auction auction <starting_price>` | Put item in your hand up for a auction | `lost.auction`             |
 | `/auction history`                  | View your personal auction history             | `lost.auction`             |
 | `/auction search`                   | Open search and filter interface               | `lost.auction`             |
 | `/auction autoclaim`                | Toggle autoclaiming auctions                   | `lost.auction`             |
