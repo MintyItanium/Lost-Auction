@@ -44,10 +44,24 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if (args.length == 1) {
+        if (args.length >= 1) {
             String subcommand = args[0].toLowerCase();
             if (subcommand.equals("history")) {
-                AuctionGUI.openHistory(p, manager, 0);
+                if (args.length >= 2) {
+                    if (!p.hasPermission("lost.auction.fullhistory")) {
+                        p.sendMessage(mm.deserialize("<red>You do not have permission to view other players' history"));
+                        return true;
+                    }
+                    String targetName = args[1];
+                    org.bukkit.OfflinePlayer target = Bukkit.getOfflinePlayer(targetName);
+                    if (target.getName() == null) {
+                        p.sendMessage(mm.deserialize("<red>Player not found."));
+                        return true;
+                    }
+                    AuctionGUI.openHistory(p, manager, 0, target.getUniqueId());
+                } else {
+                    AuctionGUI.openHistory(p, manager, 0, null);
+                }
                 return true;
             } else if (subcommand.equals("allhistory") || subcommand.equals("fullhistory")) {
                 if (!p.hasPermission("lost.auction.fullhistory")) {
@@ -143,6 +157,14 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
             if ("autoclaim".startsWith(partial)) completions.add("autoclaim");
             if ("fullhistory".startsWith(partial) && player.hasPermission("lost.auction.fullhistory")) {
                 completions.add("fullhistory");
+            }
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("history") && player.hasPermission("lost.auction.fullhistory")) {
+            String partial = args[1].toLowerCase();
+            for (org.bukkit.OfflinePlayer offline : Bukkit.getOfflinePlayers()) {
+                String name = offline.getName();
+                if (name != null && name.toLowerCase().startsWith(partial)) {
+                    completions.add(name);
+                }
             }
         }
 

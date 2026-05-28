@@ -27,6 +27,7 @@ public class AuctionGUI implements Listener {
     private static final Map<Player, String> adminSelectedAuction = new HashMap<>();
     private static final Map<Player, Double> priceFilterMin = new HashMap<>();
     private static final Map<Player, Double> priceFilterMax = new HashMap<>();
+    private static final Map<UUID, UUID> viewingHistoryTarget = new HashMap<>();
 
     public AuctionGUI(AuctionManager m) { this.manager = m; }
 
@@ -819,16 +820,29 @@ public class AuctionGUI implements Listener {
         p.openInventory(inv);
     }
 
-    public static void openHistory(Player p, AuctionManager manager, int page) {
+    public static void openHistory(Player p, AuctionManager manager, int page, UUID targetPlayer) {
         if (!p.hasPermission("lost.auction")) {
             p.sendMessage("You do not have permission to use the auction house.");
             return;
         }
-        Inventory inv = Bukkit.createInventory(null, 54, "Your Auction History - Page " + (page + 1));
-        fillBorder(inv);
-        setBalanceItem(inv, p, manager, 4);
 
-        List<Auction> history = manager.getPlayerHistory(p.getUniqueId());
+        boolean viewingSelf = (targetPlayer == null);
+        UUID targetUUID = viewingSelf ? p.getUniqueId() : targetPlayer;
+        String targetName = viewingSelf ? "Your" : getPlayerName(targetUUID) + "'s";
+
+        if (viewingSelf) {
+            viewingHistoryTarget.remove(p.getUniqueId());
+        } else {
+            viewingHistoryTarget.put(p.getUniqueId(), targetUUID);
+        }
+
+        Inventory inv = Bukkit.createInventory(null, 54, targetName + " Auction History - Page " + (page + 1));
+        fillBorder(inv);
+        if (viewingSelf) {
+            setBalanceItem(inv, p, manager, 4);
+        }
+
+        List<Auction> history = manager.getPlayerHistory(targetUUID);
         int itemsPerPage = 28;
         int startIndex = page * itemsPerPage;
         int endIndex = Math.min(startIndex + itemsPerPage, history.size());
@@ -856,8 +870,8 @@ public class AuctionGUI implements Listener {
                 lore.add("Status: " + status);
             }
 
-            String role = a.seller.equals(p.getUniqueId()) ? "Seller" : "Bidder";
-            lore.add("Your Role: " + role);
+            String role = a.seller.equals(targetUUID) ? "Seller" : "Bidder";
+            lore.add((viewingSelf ? "Your Role: " : "Role: ") + role);
             if (role.equals("Bidder")) {
                 lore.add("Seller: " + getPlayerName(a.seller));
             }
@@ -1860,7 +1874,7 @@ public class AuctionGUI implements Listener {
                 openSearch(p, manager);
                 return;
             } else if (clickedMeta.getDisplayName().equals(ChatColor.BLUE + "Your Auction History")) {
-                openHistory(p, manager, 0);
+                openHistory(p, manager, 0, null);
                 return;
             } else if (clickedMeta.getDisplayName().equals(ChatColor.AQUA + "List Item for Sale")) {
                 openSelectItem(p, manager);
@@ -2169,8 +2183,8 @@ public class AuctionGUI implements Listener {
     @EventHandler
     public void onInventoryClickHistory(InventoryClickEvent e) {
         String title = e.getView().getTitle();
-        boolean isPlayerHistory = title.startsWith("Your Auction History");
         boolean isAllHistory = title.startsWith("All Auction History");
+        boolean isPlayerHistory = !isAllHistory && title.contains("Auction History");
         if (!isPlayerHistory && !isAllHistory) return;
         e.setCancelled(true);
         if (!(e.getWhoClicked() instanceof Player)) return;
@@ -2193,11 +2207,19 @@ public class AuctionGUI implements Listener {
         if (displayName.equals(ChatColor.RED + "Back to Auction House")) {
             openMain(p, manager);
         } else if (displayName.equals(ChatColor.YELLOW + "Previous Page")) {
-            if (isPlayerHistory) openHistory(p, manager, Math.max(0, currentPage - 1));
-            else openAllHistory(p, manager, Math.max(0, currentPage - 1));
+            if (isPlayerHistory) {
+                UUID target = viewingHistoryTarget.get(p.getUniqueId());
+                openHistory(p, manager, Math.max(0, currentPage - 1), target);
+            } else {
+                openAllHistory(p, manager, Math.max(0, currentPage - 1));
+            }
         } else if (displayName.equals(ChatColor.YELLOW + "Next Page")) {
-            if (isPlayerHistory) openHistory(p, manager, currentPage + 1);
-            else openAllHistory(p, manager, currentPage + 1);
+            if (isPlayerHistory) {
+                UUID target = viewingHistoryTarget.get(p.getUniqueId());
+                openHistory(p, manager, currentPage + 1, target);
+            } else {
+                openAllHistory(p, manager, currentPage + 1);
+            }
         }
     }
 }
