@@ -56,6 +56,14 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
                 }
                 AuctionGUI.openAllHistory(p, manager, 0);
                 return true;
+            } else if (subcommand.equals("autoclaim")) {
+                boolean enabled = manager.toggleAutoClaim(p.getUniqueId());
+                if (enabled) {
+                    p.sendMessage(mm.deserialize("<green>[Auction] Auto-claim enabled. Expired items will be auto-delivered <yellow> when your inventory has space."));
+                } else {
+                    p.sendMessage(mm.deserialize("<yellow>[Auction] Auto-claim disabled. Expired items go to Unclaimed Items."));
+                }
+                return true;
             }
         }
 
@@ -112,7 +120,7 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        p.sendMessage(mm.deserialize("<yellow>Usage: <green>/auction <white>OR <green>/auction sell <price><white> OR <green>/auction auction <startingPrice><white> OR <green>/auction history <white>OR <green>/auction fullhistory"));
+        p.sendMessage(mm.deserialize("<yellow>Usage: <green>/auction <white>OR <green>/auction sell <price><white> OR <green>/auction auction <startingPrice><white> OR <green>/auction history <white>OR <green>/auction fullhistory <white>OR <green>/auction autoclaim"));
         return true;
     }
 
@@ -132,6 +140,7 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
             if ("sell".startsWith(partial)) completions.add("sell");
             if ("auction".startsWith(partial)) completions.add("auction");
             if ("history".startsWith(partial)) completions.add("history");
+            if ("autoclaim".startsWith(partial)) completions.add("autoclaim");
             if ("fullhistory".startsWith(partial) && player.hasPermission("lost.auction.fullhistory")) {
                 completions.add("fullhistory");
             }

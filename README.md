@@ -9,16 +9,6 @@ a Auction House plugin for Paper 1.21.x
 - EssentialsX
 - Java 21+
 
-## Building and Testing
-
-Use **JDK 21** To build.
-
-```bash
-mvn clean package
-```
-
-Place the jar file in "/target" into your server `plugins/` folder, along with Vault and EssentialsX, then start the server.
-
 ## Features
 
 ### Core Auction System
@@ -59,7 +49,7 @@ Place the jar file in "/target" into your server `plugins/` folder, along with V
 | ------------------------------------- | ------------------------------------------------ | ---------------------------- |
 | `/auction`                          | Open the auction house GUI                     | `lost.auction`             |
 | `/auction sell <price>`             | Put item in your hand up for fixed-price sale  | `lost.auction`             |
-| `/auction auction <starting_price>` | Put item in your hand up for bid-based auction | `lost.auction`             |
+| `/auction auction <starting_price>` | Put item in your hand up for a auction | `lost.auction`             |
 | `/auction history`                  | View your personal auction history             | `lost.auction`             |
 | `/auction search`                   | Open search and filter interface               | `lost.auction`             |
 | `/auction autoclaim`                | Toggle autoclaiming auctions                   | `lost.auction`             |
@@ -71,3 +61,15 @@ Place the jar file in "/target" into your server `plugins/` folder, along with V
 - `lost.auction`: Use the auction house and most commands (default: all players)
 - `lost.auction.admin`: Administrative commands for moderation staff (default: operators)
 - `lost.auction.fullhistory`: View all auction history (default: operators)
+
+- 
+## Building and Testing
+
+Use **JDK 21** To build.
+
+```bash
+mvn clean package
+```
+
+Place the jar file in "/target" into your server `plugins/` folder, along with Vault and EssentialsX, then start the server.
+

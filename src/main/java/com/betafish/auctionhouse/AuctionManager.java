@@ -18,6 +18,7 @@ public class AuctionManager {
     private final Map<String, Auction> auctions = new LinkedHashMap<>();
     private final Map<UUID, List<ItemStack>> pendingDeliveries = new HashMap<>();
     private final Map<UUID, List<ItemStack>> reclaimableItems = new HashMap<>();
+    private final Set<UUID> autoClaimPlayers = new HashSet<>();
     private final Map<UUID, List<Auction>> playerHistory = new HashMap<>();
 
     private final File dataFile;
@@ -95,18 +96,28 @@ public class AuctionManager {
         }
         categoriesData = YamlConfiguration.loadConfiguration(categoriesFile);
 
-        // Migrate old pendingDeliveries to reclaimableItems
+        if (data.isList("auto-claim")) {
+            for (String s : data.getStringList("auto-claim")) {
+                try { autoClaimPlayers.add(UUID.fromString(s)); } catch (IllegalArgumentException ignored) {}
+            }
+        }
+
+        // Migrate old pendingDeliveries to reclaimableItems for players without auto-claim
         if (!pendingDeliveries.isEmpty()) {
+            List<UUID> toRemove = new ArrayList<>();
             for (Map.Entry<UUID, List<ItemStack>> entry : pendingDeliveries.entrySet()) {
                 UUID playerId = entry.getKey();
-                List<ItemStack> items = entry.getValue();
-                reclaimableItems.merge(playerId, items, (oldList, newList) -> {
-                    oldList.addAll(newList);
-                    return oldList;
-                });
+                if (!autoClaimPlayers.contains(playerId)) {
+                    List<ItemStack> items = entry.getValue();
+                    reclaimableItems.merge(playerId, items, (oldList, newList) -> {
+                        oldList.addAll(newList);
+                        return oldList;
+                    });
+                    toRemove.add(playerId);
+                }
             }
-            pendingDeliveries.clear();
-            data.set("deliveries", null);
+            for (UUID uuid : toRemove) pendingDeliveries.remove(uuid);
+            if (pendingDeliveries.isEmpty()) data.set("deliveries", null);
             save();
         }
     }
@@ -128,6 +139,10 @@ public class AuctionManager {
             for (Map.Entry<UUID, List<ItemStack>> e : reclaimableItems.entrySet()) {
                 data.set("reclaims." + e.getKey().toString(), e.getValue());
             }
+
+            List<String> autoClaimList = new ArrayList<>();
+            for (UUID uuid : autoClaimPlayers) autoClaimList.add(uuid.toString());
+            data.set("auto-claim", autoClaimList);
 
             data.save(dataFile);
 
@@ -171,9 +186,6 @@ public class AuctionManager {
         if (type == Auction.Type.AUCTION) a.currentBid = 0.0;
         auctions.put(id, a);
 
-        // Add to seller's history immediately when created
-        playerHistory.computeIfAbsent(seller, k -> new ArrayList<>()).add(a);
-
         save();
         return a;
     }
@@ -183,6 +195,36 @@ public class AuctionManager {
     public Auction getAuction(String id) { return auctions.get(id); }
 
     public void removeAuction(String id) { auctions.remove(id); save(); }
+
+    public boolean isBuyItNowEnabled() {
+        return plugin.getConfig().getBoolean("buy-it-now-enabled", true);
+    }
+
+    public boolean buyItNow(Player buyer, Auction a) {
+        if (!isBuyItNowEnabled()) return false;
+        double price = a.startingPrice;
+        if (!econ.has(buyer, price)) return false;
+        econ.withdrawPlayer(buyer, price);
+        econ.depositPlayer(Bukkit.getOfflinePlayer(a.seller), price);
+
+        // deliver item
+        HashMap<Integer, ItemStack> overflow = buyer.getInventory().addItem(stripCategoryLore(a.item));
+        for (ItemStack drop : overflow.values()) {
+            buyer.getWorld().dropItemNaturally(buyer.getLocation(), drop);
+        }
+
+        // record buyer so history shows "Sold" instead of "Expired"
+        a.currentBidder = buyer.getUniqueId();
+        a.currentBid = price;
+
+        // record in history for both
+        playerHistory.computeIfAbsent(a.seller, k -> new ArrayList<>()).add(a);
+        playerHistory.computeIfAbsent(buyer.getUniqueId(), k -> new ArrayList<>()).add(a);
+
+        auctions.remove(a.id);
+        save();
+        return true;
+    }
 
     public void addPendingDelivery(UUID player, ItemStack item) {
         pendingDeliveries.computeIfAbsent(player, k -> new ArrayList<>()).add(item);
@@ -210,6 +252,22 @@ public class AuctionManager {
             if (items.isEmpty()) reclaimableItems.remove(player);
             save();
         }
+    }
+
+    public boolean toggleAutoClaim(UUID player) {
+        if (autoClaimPlayers.contains(player)) {
+            autoClaimPlayers.remove(player);
+            save();
+            return false;
+        } else {
+            autoClaimPlayers.add(player);
+            save();
+            return true;
+        }
+    }
+
+    public boolean hasAutoClaim(UUID player) {
+        return autoClaimPlayers.contains(player);
     }
 
     public static ItemStack stripCategoryLore(ItemStack item) {
@@ -314,8 +372,13 @@ public class AuctionManager {
         }
 
         if (a.type == Auction.Type.FIXED) {
-            addReclaimableItem(a.seller, stripCategoryLore(a.item));
-            MessagePlayer(a.seller, "Your listing expired. Claim your item back from the Auction House!");
+            if (hasAutoClaim(a.seller)) {
+                addPendingDelivery(a.seller, stripCategoryLore(a.item));
+                MessagePlayer(a.seller, "Your listing expired. Item will be delivered when you rejoin.");
+            } else {
+                addReclaimableItem(a.seller, stripCategoryLore(a.item));
+                MessagePlayer(a.seller, "Your listing expired. Claim your item back from the Auction House!");
+            }
         } else {
             if (a.currentBidder != null) {
                 Player winner = Bukkit.getPlayer(a.currentBidder);
@@ -328,8 +391,13 @@ public class AuctionManager {
                 econ.depositPlayer(Bukkit.getOfflinePlayer(a.seller), a.currentBid);
                 MessagePlayer(a.seller, "Your item sold for " + a.currentBid);
             } else {
-                addReclaimableItem(a.seller, stripCategoryLore(a.item));
-                MessagePlayer(a.seller, "Your auction ended with no bids. Claim your item back from the Auction House!");
+                if (hasAutoClaim(a.seller)) {
+                    addPendingDelivery(a.seller, stripCategoryLore(a.item));
+                    MessagePlayer(a.seller, "Your auction ended with no bids. Item will be delivered when you rejoin.");
+                } else {
+                    addReclaimableItem(a.seller, stripCategoryLore(a.item));
+                    MessagePlayer(a.seller, "Your auction ended with no bids. Claim your item back from the Auction House!");
+                }
             }
         }
     }
