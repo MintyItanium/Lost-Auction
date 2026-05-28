@@ -72,3 +72,6 @@ mvn clean package
 
 Place the jar file in "/target" into your server `plugins/` folder, along with Vault and EssentialsX, then start the server.
 
+#### Gitlab Mirror
+a mirror of the source code can be found at: https://gitlab.com/MintyItanium/Lost-Auction
+
