@@ -1507,7 +1507,9 @@ public class AuctionGUI implements Listener {
 
     @EventHandler
     public void onInventoryClickFiltered(InventoryClickEvent e) {
-        if (!e.getView().getTitle().startsWith("Filtered Auctions:")) return;
+        String title = e.getView().getTitle();
+        boolean isPriceFilter = title.startsWith("Price Filtered - Page ");
+        if (!title.startsWith("Filtered Auctions:") && !isPriceFilter) return;
         e.setCancelled(true);
         if (!(e.getWhoClicked() instanceof Player)) return;
         Player p = (Player) e.getWhoClicked();
@@ -1519,16 +1521,22 @@ public class AuctionGUI implements Listener {
         if (clickedMeta != null && clickedMeta.hasDisplayName()) {
             String displayName = clickedMeta.getDisplayName();
             if (displayName.equals(ChatColor.YELLOW + "Previous Page")) {
-                String title = e.getView().getTitle();
-                Auction.Type filterType = title.contains("FIXED") ? Auction.Type.FIXED : Auction.Type.AUCTION;
                 int currentPage = Integer.parseInt(title.substring(title.lastIndexOf(" ") + 1)) - 1;
-                openFilteredAuctions(p, manager, filterType, currentPage - 1);
+                if (isPriceFilter) {
+                    openFilteredByPrice(p, manager, currentPage - 1);
+                } else {
+                    Auction.Type filterType = title.contains("FIXED") ? Auction.Type.FIXED : Auction.Type.AUCTION;
+                    openFilteredAuctions(p, manager, filterType, currentPage - 1);
+                }
                 return;
             } else if (displayName.equals(ChatColor.YELLOW + "Next Page")) {
-                String title = e.getView().getTitle();
-                Auction.Type filterType = title.contains("FIXED") ? Auction.Type.FIXED : Auction.Type.AUCTION;
                 int currentPage = Integer.parseInt(title.substring(title.lastIndexOf(" ") + 1)) - 1;
-                openFilteredAuctions(p, manager, filterType, currentPage + 1);
+                if (isPriceFilter) {
+                    openFilteredByPrice(p, manager, currentPage + 1);
+                } else {
+                    Auction.Type filterType = title.contains("FIXED") ? Auction.Type.FIXED : Auction.Type.AUCTION;
+                    openFilteredAuctions(p, manager, filterType, currentPage + 1);
+                }
                 return;
             } else if (displayName.equals(ChatColor.RED + "Back to Search")) {
                 openSearch(p, manager);
@@ -1540,14 +1548,24 @@ public class AuctionGUI implements Listener {
         int slot = e.getSlot();
         if (slot < 0 || slot >= 45) return; // 45 items per page
 
-        List<Auction> auctionList = new ArrayList<>();
-        String title = e.getView().getTitle();
-        Auction.Type filterType = title.contains("FIXED") ? Auction.Type.FIXED : Auction.Type.AUCTION;
         int currentPage = Integer.parseInt(title.substring(title.lastIndexOf(" ") + 1)) - 1;
         int startIndex = currentPage * 45;
 
-        for (Auction a : manager.listAuctions()) {
-            if (a.type == filterType && (filterType != Auction.Type.FIXED || manager.isBuyItNowEnabled())) auctionList.add(a);
+        List<Auction> auctionList = new ArrayList<>();
+        boolean isBuyItNowEnabled = manager.isBuyItNowEnabled();
+        if (isPriceFilter) {
+            double min = priceFilterMin.getOrDefault(p, 0.0);
+            double max = priceFilterMax.getOrDefault(p, Double.MAX_VALUE);
+            for (Auction a : manager.listAuctions()) {
+                if (a.type == Auction.Type.FIXED && !isBuyItNowEnabled) continue;
+                double price = a.type == Auction.Type.FIXED ? a.startingPrice : a.currentBid;
+                if (price >= min && price <= max) auctionList.add(a);
+            }
+        } else {
+            Auction.Type filterType = title.contains("FIXED") ? Auction.Type.FIXED : Auction.Type.AUCTION;
+            for (Auction a : manager.listAuctions()) {
+                if (a.type == filterType && (filterType != Auction.Type.FIXED || isBuyItNowEnabled)) auctionList.add(a);
+            }
         }
 
         int auctionIndex = startIndex + slot;
