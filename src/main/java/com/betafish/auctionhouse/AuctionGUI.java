@@ -5,9 +5,12 @@ import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -2273,5 +2276,60 @@ public class AuctionGUI implements Listener {
                 openAllHistory(p, manager, currentPage + 1);
             }
         }
+    }
+
+    private static boolean isAuctionGUITitle(String title) {
+        return title.equals("Auction House")
+            || title.equals("Auction Settings")
+            || title.startsWith("Claim Items - Page ")
+            || title.startsWith("Browse Categories - Page ")
+            || title.startsWith("Browse Auctions - Page ")
+            || title.equals("Select Item to List")
+            || title.equals("Choose Category")
+            || title.equals("Choose Listing Type")
+            || title.equals("Set Listing Price")
+            || title.equals("Auction Admin")
+            || title.equals("Search & Filter Auctions")
+            || title.startsWith("Search Results:")
+            || title.equals("Filter by Category")
+            || title.equals("Filter by Price Range")
+            || title.equals("Filter by Auction Type")
+            || title.startsWith("Filtered Auctions:")
+            || title.startsWith("Price Filtered - Page ")
+            || title.startsWith("Category:")
+            || title.startsWith("Your Listings - Page ")
+            || title.startsWith("All Auction History")
+            || title.contains("Auction History")
+            || title.startsWith(ChatColor.BLACK + "Auction Admin [");
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onInventoryClickGlobal(InventoryClickEvent e) {
+        if (isAuctionGUITitle(e.getView().getTitle())) {
+            e.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onInventoryDragGlobal(InventoryDragEvent e) {
+        if (isAuctionGUITitle(e.getView().getTitle())) {
+            e.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent e) {
+        Player p = e.getPlayer();
+        ItemStack item = pendingSelection.remove(p);
+        if (item != null) {
+            manager.addPendingDelivery(p.getUniqueId(), AuctionManager.stripCategoryLore(item));
+        }
+        pendingCategory.remove(p);
+        pendingListingType.remove(p);
+        pendingPrice.remove(p);
+        adminSelectedAuction.remove(p);
+        priceFilterMin.remove(p);
+        priceFilterMax.remove(p);
+        viewingHistoryTarget.remove(p.getUniqueId());
     }
 }

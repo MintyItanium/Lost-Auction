@@ -160,8 +160,8 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
             }
         } else if (args.length == 2 && args[0].equalsIgnoreCase("history") && player.hasPermission("lost.auction.fullhistory")) {
             String partial = args[1].toLowerCase();
-            for (org.bukkit.OfflinePlayer offline : Bukkit.getOfflinePlayers()) {
-                String name = offline.getName();
+            for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+                String name = onlinePlayer.getName();
                 if (name != null && name.toLowerCase().startsWith(partial)) {
                     completions.add(name);
                 }

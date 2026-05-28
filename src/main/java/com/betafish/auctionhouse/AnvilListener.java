@@ -7,6 +7,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.ItemStack;
@@ -85,32 +86,38 @@ public class AnvilListener implements Listener {
         String name = result.getItemMeta().getDisplayName();
         if (name == null) return;
         String raw = name.replaceAll("[^0-9\\.]", "");
-        double bid;
-        try { bid = Double.parseDouble(raw); } catch (Exception ex) { p.sendMessage("Invalid bid"); awaitingAuction.remove(p); p.closeInventory(); return; }
 
-        String aid = awaitingAuction.remove(p);
-        if (aid == null) { p.sendMessage("No auction selected"); p.closeInventory(); return; }
-        Auction a = manager.getAuction(aid);
-        if (a == null) { p.sendMessage("Auction not found"); p.closeInventory(); return; }
+        Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
+            double bid;
+            try { bid = Double.parseDouble(raw); } catch (Exception ex) { p.sendMessage("Invalid bid"); awaitingAuction.remove(p); p.closeInventory(); return; }
 
-        double minIncrement = manager.getPlugin().getConfig().getDouble("anvil-bid-min-increment", 1.0);
-        double required = Math.max(a.startingPrice, a.currentBid + minIncrement);
-        if (bid < required) { p.sendMessage("Your bid must be at least " + required); p.closeInventory(); return; }
+            double maxCap = manager.getPlugin().getConfig().getDouble("max-bid-cap", 999000000);
+            if (!Double.isFinite(bid) || bid <= 0 || bid > maxCap) { p.sendMessage("Invalid bid amount"); awaitingAuction.remove(p); p.closeInventory(); return; }
 
-        if (!manager.getEconomy().has(p, bid)) { p.sendMessage("You cannot afford this bid."); p.closeInventory(); return; }
+            String aid = awaitingAuction.remove(p);
+            if (aid == null) { p.sendMessage("No auction selected"); p.closeInventory(); return; }
+            Auction a = manager.getAuction(aid);
+            if (a == null) { p.sendMessage("Auction not found"); p.closeInventory(); return; }
 
-        // withdraw bidder
-        manager.getEconomy().withdrawPlayer(p, bid);
-        // refund previous bidder
-        if (a.currentBidder != null) {
-            manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.currentBidder), a.currentBid);
-        }
+            double minIncrement = manager.getPlugin().getConfig().getDouble("anvil-bid-min-increment", 1.0);
+            double required = Math.max(a.startingPrice, a.currentBid + minIncrement);
+            if (bid < required) { p.sendMessage("Your bid must be at least " + required); p.closeInventory(); return; }
 
-        a.currentBid = bid;
-        a.currentBidder = p.getUniqueId();
-        manager.save();
-        p.sendMessage(ChatColor.GREEN + "Bid placed: " + bid);
-        p.closeInventory();
+            if (!manager.getEconomy().has(p, bid)) { p.sendMessage("You cannot afford this bid."); p.closeInventory(); return; }
+
+            // withdraw bidder
+            manager.getEconomy().withdrawPlayer(p, bid);
+            // refund previous bidder
+            if (a.currentBidder != null) {
+                manager.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(a.currentBidder), a.currentBid);
+            }
+
+            a.currentBid = bid;
+            a.currentBidder = p.getUniqueId();
+            manager.save();
+            p.sendMessage(ChatColor.GREEN + "Bid placed: " + bid);
+            p.closeInventory();
+        });
     }
 
     @EventHandler
@@ -128,6 +135,15 @@ public class AnvilListener implements Listener {
                     PendingListing pl = awaitingListing.remove(p);
                     if (pl != null) {
                         // return item to player as pending delivery (safe)
+                        pl.manager.addPendingDelivery(p.getUniqueId(), pl.item);
+                    }
+                    return;
+                }
+                double maxCap = manager.getPlugin().getConfig().getDouble("max-bid-cap", 999000000);
+                if (!Double.isFinite(price) || price <= 0 || price > maxCap) {
+                    p.sendMessage("Invalid price amount, listing cancelled.");
+                    PendingListing pl = awaitingListing.remove(p);
+                    if (pl != null) {
                         pl.manager.addPendingDelivery(p.getUniqueId(), pl.item);
                     }
                     return;
@@ -168,6 +184,10 @@ public class AnvilListener implements Listener {
                         p.sendMessage("Invalid price.");
                         return;
                     }
+                    if (!Double.isFinite(price) || price < 0) {
+                        p.sendMessage("Invalid price.");
+                        return;
+                    }
                     AuctionGUI.setPriceFilterMin(p, price);
                 }
                 AuctionGUI.openPriceFilter(p, manager);
@@ -189,6 +209,10 @@ public class AnvilListener implements Listener {
                         p.sendMessage("Invalid price.");
                         return;
                     }
+                    if (!Double.isFinite(price) || price < 0) {
+                        p.sendMessage("Invalid price.");
+                        return;
+                    }
                     AuctionGUI.setPriceFilterMax(p, price);
                 }
                 AuctionGUI.openPriceFilter(p, manager);
@@ -203,6 +227,12 @@ public class AnvilListener implements Listener {
                 String raw = msg.replaceAll("[^0-9\\.]", "");
                 double bid;
                 try { bid = Double.parseDouble(raw); } catch (Exception ex) {
+                    p.sendMessage("Invalid amount.");
+                    awaitingAdminBid.remove(p);
+                    return;
+                }
+                double maxCap = manager.getPlugin().getConfig().getDouble("max-bid-cap", 999000000);
+                if (!Double.isFinite(bid) || bid <= 0 || bid > maxCap) {
                     p.sendMessage("Invalid amount.");
                     awaitingAdminBid.remove(p);
                     return;
@@ -225,6 +255,9 @@ public class AnvilListener implements Listener {
             String raw = msg.replaceAll("[^0-9\\.]", "");
             double bid;
             try { bid = Double.parseDouble(raw); } catch (Exception ex) { p.sendMessage("Invalid bid"); awaitingAuction.remove(p); return; }
+
+            double maxCap = manager.getPlugin().getConfig().getDouble("max-bid-cap", 999000000);
+            if (!Double.isFinite(bid) || bid <= 0 || bid > maxCap) { p.sendMessage("Invalid bid amount"); awaitingAuction.remove(p); return; }
 
             String aid = awaitingAuction.remove(p);
             if (aid == null) { p.sendMessage("No auction selected"); return; }
@@ -250,5 +283,19 @@ public class AnvilListener implements Listener {
             p.sendMessage(ChatColor.GREEN + "Bid placed: " + bid);
             p.closeInventory();
         });
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent e) {
+        Player p = e.getPlayer();
+        PendingListing pl = awaitingListing.remove(p);
+        if (pl != null) {
+            pl.manager.addPendingDelivery(p.getUniqueId(), pl.item);
+        }
+        awaitingAuction.remove(p);
+        awaitingSearch.remove(p);
+        awaitingPriceFilterMin.remove(p);
+        awaitingPriceFilterMax.remove(p);
+        awaitingAdminBid.remove(p);
     }
 }
