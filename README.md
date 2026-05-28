@@ -62,7 +62,6 @@ a Auction House plugin for Paper 1.21.x
 - `lost.auction.admin`: Administrative commands for moderation staff (default: operators)
 - `lost.auction.fullhistory`: View all auction history (default: operators)
 
-- 
 ## Building and Testing
 
 Use **JDK 21** To build.
