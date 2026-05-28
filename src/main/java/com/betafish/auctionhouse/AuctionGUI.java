@@ -1172,7 +1172,7 @@ public class AuctionGUI implements Listener {
 
         if (a.type == Auction.Type.FIXED) {
             if (!manager.buyItNow(p, a)) { p.sendMessage("You cannot afford this item."); return; }
-            p.sendMessage("[Auction] You bought item for " + a.startingPrice);
+            p.sendMessage("[Auction] you bought the item for " + a.startingPrice);
         } else {
             AnvilListener.openAnvilForBid(p, a, manager);
         }
@@ -1513,7 +1513,7 @@ public class AuctionGUI implements Listener {
 
         if (a.type == Auction.Type.FIXED) {
             if (!manager.buyItNow(p, a)) { p.sendMessage("You cannot afford this item."); return; }
-            p.sendMessage("[Auction] You bought item for " + a.startingPrice);
+            p.sendMessage("[Auction] you bought the item for " + a.startingPrice);
         } else {
             AnvilListener.openAnvilForBid(p, a, manager);
         }
@@ -1664,7 +1664,7 @@ public class AuctionGUI implements Listener {
 
         if (a.type == Auction.Type.FIXED) {
             if (!manager.buyItNow(p, a)) { p.sendMessage("You cannot afford this item."); return; }
-            p.sendMessage("[Auction] You bought item for " + a.startingPrice);
+            p.sendMessage("[Auction] you bought the item for " + a.startingPrice);
         } else {
             // open anvil to input bid
             AnvilListener.openAnvilForBid(p, a, manager);
