@@ -1145,6 +1145,40 @@ public class AuctionGUI implements Listener {
         }
     }
     @EventHandler
+    public void onInventoryClickSearchResults(InventoryClickEvent e) {
+        String title = e.getView().getTitle();
+        if (!title.startsWith("Search Results:")) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player)) return;
+        Player p = (Player) e.getWhoClicked();
+        if (!p.hasPermission("lost.auction")) { p.sendMessage("You do not have permission to use the auction house."); p.closeInventory(); return; }
+
+        ItemStack clicked = e.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
+        ItemMeta clickedMeta = clicked.getItemMeta();
+        if (clickedMeta == null || !clickedMeta.hasDisplayName()) return;
+        String displayName = clickedMeta.getDisplayName();
+
+        if (displayName.equals(ChatColor.RED + "Back to Search")) {
+            openSearch(p, manager);
+            return;
+        } else if (displayName.equals(ChatColor.YELLOW + "Previous Page") || displayName.equals(ChatColor.YELLOW + "Next Page")) {
+            int termStart = title.indexOf("'") + 1;
+            int termEnd = title.indexOf("'", termStart);
+            String searchTerm = title.substring(termStart, termEnd);
+
+            int currentPage = 0;
+            int pageIdx = title.lastIndexOf(" - Page ");
+            if (pageIdx >= 0) {
+                try {
+                    currentPage = Integer.parseInt(title.substring(pageIdx + 8)) - 1;
+                } catch (NumberFormatException ignored) {}
+            }
+            int newPage = displayName.equals(ChatColor.YELLOW + "Previous Page") ? Math.max(0, currentPage - 1) : currentPage + 1;
+            openSearchResults(p, manager, searchTerm, newPage);
+        }
+    }
+    @EventHandler
     public void onInventoryClickBrowse(InventoryClickEvent e) {
         if (!e.getView().getTitle().startsWith("Browse Auctions - Page ")) return;
         e.setCancelled(true);
