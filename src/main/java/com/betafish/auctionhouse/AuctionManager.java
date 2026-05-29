@@ -19,11 +19,11 @@ public class AuctionManager {
     private final Map<UUID, List<ItemStack>> pendingDeliveries = new HashMap<>();
     private final Map<UUID, List<ItemStack>> reclaimableItems = new HashMap<>();
     private final Set<UUID> autoClaimPlayers = new HashSet<>();
-    private final Map<UUID, List<Auction>> playerHistory = new HashMap<>();
 
     private final File dataFile;
     private final File historyFile;
     private final File categoriesFile;
+    private final Object historyLock = new Object();
     private YamlConfiguration data;
     private YamlConfiguration historyData;
     private YamlConfiguration categoriesData;
@@ -71,22 +71,6 @@ public class AuctionManager {
                 UUID u = UUID.fromString(s);
                 List<ItemStack> list = (List<ItemStack>) data.get("reclaims." + s);
                 reclaimableItems.put(u, list == null ? new ArrayList<>() : list);
-            }
-        }
-
-        // Load history per player
-        if (historyData.isConfigurationSection("players")) {
-            for (String uuidStr : historyData.getConfigurationSection("players").getKeys(false)) {
-                UUID playerId = UUID.fromString(uuidStr);
-                List<Map<String, Object>> playerAuctions = (List<Map<String, Object>>) historyData.get("players." + uuidStr);
-                if (playerAuctions != null) {
-                    List<Auction> auctions = new ArrayList<>();
-                    for (Map<String, Object> map : playerAuctions) {
-                        Auction a = Auction.deserialize(map);
-                        auctions.add(a);
-                    }
-                    playerHistory.put(playerId, auctions);
-                }
             }
         }
 
@@ -145,18 +129,6 @@ public class AuctionManager {
             data.set("auto-claim", autoClaimList);
 
             data.save(dataFile);
-
-            // Save history to separate file
-            historyData = YamlConfiguration.loadConfiguration(historyFile);
-            historyData.set("players", null);
-            for (Map.Entry<UUID, List<Auction>> entry : playerHistory.entrySet()) {
-                List<Map<String, Object>> playerAuctions = new ArrayList<>();
-                for (Auction a : entry.getValue()) {
-                    playerAuctions.add(a.serialize());
-                }
-                historyData.set("players." + entry.getKey().toString(), playerAuctions);
-            }
-            historyData.save(historyFile);
         } catch (Exception ex) { ex.printStackTrace(); }
     }
 
@@ -218,8 +190,8 @@ public class AuctionManager {
         a.currentBid = price;
 
         // record in history for both
-        playerHistory.computeIfAbsent(a.seller, k -> new ArrayList<>()).add(a);
-        playerHistory.computeIfAbsent(buyer.getUniqueId(), k -> new ArrayList<>()).add(a);
+        addToHistory(a.seller, a);
+        addToHistory(buyer.getUniqueId(), a);
 
         auctions.remove(a.id);
         save();
@@ -286,7 +258,10 @@ public class AuctionManager {
         List<ItemStack> items = pendingDeliveries.remove(p.getUniqueId());
         if (items != null && !items.isEmpty()) {
             for (ItemStack it : items) {
-                p.getInventory().addItem(it);
+                java.util.HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(it);
+                for (ItemStack drop : overflow.values()) {
+                    p.getWorld().dropItemNaturally(p.getLocation(), drop);
+                }
             }
             p.sendMessage("[Auction] You received pending auction items.");
             save();
@@ -364,11 +339,11 @@ public class AuctionManager {
 
     private void handleEnd(Auction a) {
         // Add to seller's history
-        playerHistory.computeIfAbsent(a.seller, k -> new ArrayList<>()).add(a);
+        addToHistory(a.seller, a);
 
         // Add to bidder's history if there was a bidder
         if (a.currentBidder != null) {
-            playerHistory.computeIfAbsent(a.currentBidder, k -> new ArrayList<>()).add(a);
+            addToHistory(a.currentBidder, a);
         }
 
         if (a.type == Auction.Type.FIXED) {
@@ -407,16 +382,62 @@ public class AuctionManager {
         if (p != null && p.isOnline()) p.sendMessage("[Auction] " + msg);
     }
 
+    private void addToHistory(UUID playerId, Auction a) {
+        synchronized (historyLock) {
+            historyData = YamlConfiguration.loadConfiguration(historyFile);
+            String path = "players." + playerId.toString();
+            List<Map<String, Object>> list = (List<Map<String, Object>>) historyData.get(path);
+            if (list == null) list = new ArrayList<>();
+            list.add(a.serialize());
+            historyData.set(path, list);
+            saveHistoryAsync();
+        }
+    }
+
+    private void saveHistoryAsync() {
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            synchronized (historyLock) {
+                try {
+                    historyData.save(historyFile);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+    }
+
     public List<Auction> getPlayerHistory(UUID playerId) {
-        return playerHistory.getOrDefault(playerId, new ArrayList<>());
+        synchronized (historyLock) {
+            historyData = YamlConfiguration.loadConfiguration(historyFile);
+            String path = "players." + playerId.toString();
+            List<Map<String, Object>> list = (List<Map<String, Object>>) historyData.get(path);
+            if (list == null) return new ArrayList<>();
+            List<Auction> result = new ArrayList<>();
+            for (Map<String, Object> map : list) {
+                result.add(Auction.deserialize(map));
+            }
+            Collections.reverse(result);
+            return result;
+        }
     }
 
     public List<Auction> getAllHistory() {
-        List<Auction> allHistory = new ArrayList<>();
-        for (List<Auction> playerAuctions : playerHistory.values()) {
-            allHistory.addAll(playerAuctions);
+        synchronized (historyLock) {
+            historyData = YamlConfiguration.loadConfiguration(historyFile);
+            List<Auction> allHistory = new ArrayList<>();
+            if (historyData.isConfigurationSection("players")) {
+                for (String uuidStr : historyData.getConfigurationSection("players").getKeys(false)) {
+                    List<Map<String, Object>> list = (List<Map<String, Object>>) historyData.get("players." + uuidStr);
+                    if (list != null) {
+                        for (Map<String, Object> map : list) {
+                            allHistory.add(Auction.deserialize(map));
+                        }
+                    }
+                }
+            }
+            Collections.reverse(allHistory);
+            return allHistory;
         }
-        return allHistory;
     }
 
     public Economy getEconomy() { return econ; }

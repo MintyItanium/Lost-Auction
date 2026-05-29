@@ -102,6 +102,7 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
 
             double price;
             try { price = Double.parseDouble(args[1]); } catch (Exception e) { p.sendMessage(mm.deserialize("<red>You can't give things away for free.")); return true; }
+            if (price <= 0 || !Double.isFinite(price)) { p.sendMessage(mm.deserialize("<red>Invalid price. Must be a positive number.")); return true; }
 
             ItemStack inHand = p.getInventory().getItemInMainHand();
             if (inHand == null || inHand.getType().isAir()) { p.sendMessage(mm.deserialize("<green>Hold an item in your main hand to list it.")); return true; }
@@ -160,8 +161,8 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
             }
         } else if (args.length == 2 && args[0].equalsIgnoreCase("history") && player.hasPermission("lost.auction.fullhistory")) {
             String partial = args[1].toLowerCase();
-            for (org.bukkit.OfflinePlayer offline : Bukkit.getOfflinePlayers()) {
-                String name = offline.getName();
+            for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+                String name = onlinePlayer.getName();
                 if (name != null && name.toLowerCase().startsWith(partial)) {
                     completions.add(name);
                 }
