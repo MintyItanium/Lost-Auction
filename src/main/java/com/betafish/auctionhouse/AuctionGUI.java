@@ -12,6 +12,7 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
@@ -33,6 +34,15 @@ public class AuctionGUI implements Listener {
     private static final Map<UUID, UUID> viewingHistoryTarget = new HashMap<>();
 
     public AuctionGUI(AuctionManager m) { this.manager = m; }
+
+    private static final class AuctionHolder implements InventoryHolder {
+        @Override
+        public Inventory getInventory() { return null; }
+    }
+
+    private static boolean isAuctionGUI(Inventory inv) {
+        return inv.getHolder() instanceof AuctionHolder;
+    }
 
     private static String getPlayerName(UUID uuid) {
         String name = Bukkit.getOfflinePlayer(uuid).getName();
@@ -70,7 +80,7 @@ public class AuctionGUI implements Listener {
             p.sendMessage("You do not have permission to use the auction house.");
             return;
         }
-        Inventory inv = Bukkit.createInventory(null, 27, "Auction House");
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 27, "Auction House");
 
         // Browse All Auctions button
         ItemStack browseBtn = new ItemStack(Material.CHEST);
@@ -168,7 +178,7 @@ public class AuctionGUI implements Listener {
             p.sendMessage("You do not have permission to use the auction house.");
             return;
         }
-        Inventory inv = Bukkit.createInventory(null, 27, "Auction Settings");
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 27, "Auction Settings");
         ItemStack border = makeBorder();
         for (int i = 0; i < 27; i++) inv.setItem(i, border.clone());
 
@@ -206,7 +216,7 @@ public class AuctionGUI implements Listener {
             p.sendMessage("You do not have permission to use the auction house.");
             return;
         }
-        Inventory inv = Bukkit.createInventory(null, 54, "Claim Items - Page " + (page + 1));
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "Claim Items - Page " + (page + 1));
         ItemStack border = makeBorder();
         for (int i = 0; i <= 8; i++) inv.setItem(i, border.clone());
         for (int i = 45; i <= 53; i++) inv.setItem(i, border.clone());
@@ -267,7 +277,7 @@ public class AuctionGUI implements Listener {
             p.sendMessage("You do not have permission to use the auction house.");
             return;
         }
-        Inventory inv = Bukkit.createInventory(null, 54, "Browse Categories - Page " + (page + 1));
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "Browse Categories - Page " + (page + 1));
 
         // Border fill
         ItemStack border = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
@@ -382,7 +392,7 @@ public class AuctionGUI implements Listener {
             p.sendMessage("You do not have permission to use the auction house.");
             return;
         }
-        Inventory inv = Bukkit.createInventory(null, 54, "Browse Auctions - Page " + (page + 1));
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "Browse Auctions - Page " + (page + 1));
         fillBorder(inv);
         setBalanceItem(inv, p, manager, 4);
 
@@ -439,7 +449,7 @@ public class AuctionGUI implements Listener {
     }
 
     public static void openSelectItem(Player p, AuctionManager manager) {
-        Inventory inv = Bukkit.createInventory(null, 54, "Select Item to List");
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "Select Item to List");
         int i = 0;
         for (ItemStack it : p.getInventory().getContents()) {
             if (it == null || it.getType() == Material.AIR) continue;
@@ -456,7 +466,7 @@ public class AuctionGUI implements Listener {
     }
 
     public static void openChooseCategory(Player p, AuctionManager manager, ItemStack selectedItem) {
-        Inventory inv = Bukkit.createInventory(null, 54, "Choose Category");
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "Choose Category");
         Map<String, String> categories = manager.getAllCategories();
 
         int i = 0;
@@ -504,7 +514,7 @@ public class AuctionGUI implements Listener {
     }
 
     public static void openChooseListingType(Player p, AuctionManager manager, ItemStack selectedItem, String category) {
-        Inventory inv = Bukkit.createInventory(null, 9, "Choose Listing Type");
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 9, "Choose Listing Type");
 
         if (manager.isBuyItNowEnabled()) {
             ItemStack sell = new ItemStack(Material.PAPER);
@@ -546,7 +556,7 @@ public class AuctionGUI implements Listener {
     }
 
     public static void openAdmin(Player p, AuctionManager manager) {
-        Inventory inv = Bukkit.createInventory(null, 54, "Auction Admin");
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "Auction Admin");
         int i = 0;
         for (Auction a : manager.listAuctions()) {
             if (i >= 54) break;
@@ -579,7 +589,7 @@ public class AuctionGUI implements Listener {
         String itemName = a.item.getItemMeta() != null && a.item.getItemMeta().hasDisplayName()
                 ? a.item.getItemMeta().getDisplayName()
                 : formatMaterialName(a.item.getType());
-        Inventory inv = Bukkit.createInventory(null, 9, ChatColor.BLACK + "Auction Admin [" + getPlayerName(a.seller) + "]: " + ChatColor.stripColor(itemName));
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 9, ChatColor.BLACK + "Auction Admin [" + getPlayerName(a.seller) + "]: " + ChatColor.stripColor(itemName));
 
         ItemStack endBtn = new ItemStack(Material.REDSTONE_BLOCK);
         ItemMeta endMeta = endBtn.getItemMeta();
@@ -655,7 +665,7 @@ public class AuctionGUI implements Listener {
     }
 
     public static void openSearch(Player p, AuctionManager manager) {
-        Inventory inv = Bukkit.createInventory(null, 54, "Search & Filter Auctions");
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "Search & Filter Auctions");
         fillBorder(inv);
         setBalanceItem(inv, p, manager, 4);
 
@@ -723,7 +733,7 @@ public class AuctionGUI implements Listener {
     }
 
     public static void openSearchResults(Player p, AuctionManager manager, String searchTerm, int page) {
-        Inventory inv = Bukkit.createInventory(null, 54, "Search Results: '" + searchTerm + "' - Page " + (page + 1));
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "Search Results: '" + searchTerm + "' - Page " + (page + 1));
         List<Auction> searchResults = new ArrayList<>();
         for (Auction a : manager.listAuctions()) {
             if (a.type == Auction.Type.FIXED && !manager.isBuyItNowEnabled()) continue;
@@ -786,7 +796,7 @@ public class AuctionGUI implements Listener {
     }
 
     public static void openCategoryFilter(Player p, AuctionManager manager) {
-        Inventory inv = Bukkit.createInventory(null, 54, "Filter by Category");
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "Filter by Category");
         Map<String, String> categories = manager.getAllCategories();
 
         int i = 0;
@@ -839,7 +849,7 @@ public class AuctionGUI implements Listener {
             viewingHistoryTarget.put(p.getUniqueId(), targetUUID);
         }
 
-        Inventory inv = Bukkit.createInventory(null, 54, targetName + " Auction History - Page " + (page + 1));
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, targetName + " Auction History - Page " + (page + 1));
         fillBorder(inv);
         if (viewingSelf) {
             setBalanceItem(inv, p, manager, 4);
@@ -914,7 +924,7 @@ public class AuctionGUI implements Listener {
     }
 
     public static void openAllHistory(Player p, AuctionManager manager, int page) {
-        Inventory inv = Bukkit.createInventory(null, 54, "All Auction History - Page " + (page + 1));
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "All Auction History - Page " + (page + 1));
         fillBorder(inv);
 
         List<Auction> history = manager.getAllHistory();
@@ -986,7 +996,7 @@ public class AuctionGUI implements Listener {
             p.sendMessage("You do not have permission to use the auction house.");
             return;
         }
-        Inventory inv = Bukkit.createInventory(null, 54, "Your Listings - Page " + (page + 1));
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "Your Listings - Page " + (page + 1));
         fillBorder(inv);
         setBalanceItem(inv, p, manager, 4);
 
@@ -1229,7 +1239,7 @@ public class AuctionGUI implements Listener {
         }
     }
     public static void openTypeFilter(Player p, AuctionManager manager) {
-        Inventory inv = Bukkit.createInventory(null, 27, "Filter by Auction Type");
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 27, "Filter by Auction Type");
 
         if (manager.isBuyItNowEnabled()) {
             // Buy it now button
@@ -1316,7 +1326,7 @@ public class AuctionGUI implements Listener {
     }
 
     public static void openPriceFilter(Player p, AuctionManager manager) {
-        Inventory inv = Bukkit.createInventory(null, 27, "Filter by Price Range");
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 27, "Filter by Price Range");
         ItemStack border = makeBorder();
         for (int i = 0; i < 27; i++) inv.setItem(i, border.clone());
 
@@ -1393,7 +1403,7 @@ public class AuctionGUI implements Listener {
     }
 
     public static void openFilteredAuctions(Player p, AuctionManager manager, Auction.Type filterType, int page) {
-        Inventory inv = Bukkit.createInventory(null, 54, "Filtered Auctions: " + filterType.name() + " - Page " + (page + 1));
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "Filtered Auctions: " + filterType.name() + " - Page " + (page + 1));
         List<Auction> filteredAuctions = new ArrayList<>();
         for (Auction a : manager.listAuctions()) {
             if (a.type == filterType && (filterType != Auction.Type.FIXED || manager.isBuyItNowEnabled()))
@@ -1450,7 +1460,7 @@ public class AuctionGUI implements Listener {
     }
 
     public static void openFilteredByPrice(Player p, AuctionManager manager, int page) {
-        Inventory inv = Bukkit.createInventory(null, 54, "Price Filtered - Page " + (page + 1));
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "Price Filtered - Page " + (page + 1));
         List<Auction> filteredResults = new ArrayList<>();
         double min = priceFilterMin.getOrDefault(p, 0.0);
         double max = priceFilterMax.getOrDefault(p, Double.MAX_VALUE);
@@ -1614,7 +1624,7 @@ public class AuctionGUI implements Listener {
     }
 
     public static void openFilteredCategoryAuctions(Player p, AuctionManager manager, String category, int page) {
-        Inventory inv = Bukkit.createInventory(null, 54, "Category: " + category + " - Page " + (page + 1));
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "Category: " + category + " - Page " + (page + 1));
         fillBorder(inv);
         setBalanceItem(inv, p, manager, 4);
 
@@ -1770,7 +1780,7 @@ public class AuctionGUI implements Listener {
         }
         pendingPrice.putIfAbsent(p, 100L);
 
-        Inventory inv = Bukkit.createInventory(null, 54, "Set Listing Price");
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, "Set Listing Price");
         fillBorder(inv);
         setBalanceItem(inv, p, manager, 4);
 
@@ -2214,6 +2224,8 @@ public class AuctionGUI implements Listener {
                 && !title.equals("Set Listing Price")) return;
 
         Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
+            Player online = Bukkit.getPlayer(p.getUniqueId());
+            if (online == null || !online.isOnline()) return;
             String newTitle = p.getOpenInventory().getTitle();
             if (newTitle.equals("Choose Category")
                     || newTitle.equals("Choose Listing Type")
@@ -2278,41 +2290,16 @@ public class AuctionGUI implements Listener {
         }
     }
 
-    private static boolean isAuctionGUITitle(String title) {
-        return title.equals("Auction House")
-            || title.equals("Auction Settings")
-            || title.startsWith("Claim Items - Page ")
-            || title.startsWith("Browse Categories - Page ")
-            || title.startsWith("Browse Auctions - Page ")
-            || title.equals("Select Item to List")
-            || title.equals("Choose Category")
-            || title.equals("Choose Listing Type")
-            || title.equals("Set Listing Price")
-            || title.equals("Auction Admin")
-            || title.equals("Search & Filter Auctions")
-            || title.startsWith("Search Results:")
-            || title.equals("Filter by Category")
-            || title.equals("Filter by Price Range")
-            || title.equals("Filter by Auction Type")
-            || title.startsWith("Filtered Auctions:")
-            || title.startsWith("Price Filtered - Page ")
-            || title.startsWith("Category:")
-            || title.startsWith("Your Listings - Page ")
-            || title.startsWith("All Auction History")
-            || title.contains("Auction History")
-            || title.startsWith(ChatColor.BLACK + "Auction Admin [");
-    }
-
     @EventHandler(priority = EventPriority.LOWEST)
     public void onInventoryClickGlobal(InventoryClickEvent e) {
-        if (isAuctionGUITitle(e.getView().getTitle())) {
+        if (isAuctionGUI(e.getInventory())) {
             e.setCancelled(true);
         }
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onInventoryDragGlobal(InventoryDragEvent e) {
-        if (isAuctionGUITitle(e.getView().getTitle())) {
+        if (isAuctionGUI(e.getInventory())) {
             e.setCancelled(true);
         }
     }
