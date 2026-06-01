@@ -184,7 +184,7 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
                 org.bukkit.Location spawnLoc = loc.clone().add(xOffset, yOffset, zOffset);
                 Salmon salmon = loc.getWorld().spawn(spawnLoc, Salmon.class);
                 salmon.setInvulnerable(true);
-                salmon.setRemoveWhenFarAway(false);
+                salmon.setRemoveWhenFarAway(true);
                 salmon.setSilent(true);
                 salmons.add(salmon);
             }
