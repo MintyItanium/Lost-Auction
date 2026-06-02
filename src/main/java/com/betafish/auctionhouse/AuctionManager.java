@@ -11,14 +11,15 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class AuctionManager {
     private final JavaPlugin plugin;
     private final Economy econ;
-    private final Map<String, Auction> auctions = new LinkedHashMap<>();
-    private final Map<UUID, List<ItemStack>> pendingDeliveries = new HashMap<>();
-    private final Map<UUID, List<ItemStack>> reclaimableItems = new HashMap<>();
-    private final Set<UUID> autoClaimPlayers = new HashSet<>();
+    private final Map<String, Auction> auctions = new ConcurrentHashMap<>();
+    private final Map<UUID, List<ItemStack>> pendingDeliveries = new ConcurrentHashMap<>();
+    private final Map<UUID, List<ItemStack>> reclaimableItems = new ConcurrentHashMap<>();
+    private final Set<UUID> autoClaimPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     private final File dataFile;
     private final File historyFile;

@@ -41,7 +41,7 @@ public class LostAuction extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new JoinListener(auctionManager), this);
 
         int interval = getConfig().getInt("check-interval-seconds", 60);
-        Bukkit.getScheduler().runTaskTimer(this, () -> auctionManager.processExpired(), 20L * interval, 20L * interval);
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, task -> auctionManager.processExpired(), 20L * interval, 20L * interval);
 
         getLogger().info("LostAuction enabled");
     }

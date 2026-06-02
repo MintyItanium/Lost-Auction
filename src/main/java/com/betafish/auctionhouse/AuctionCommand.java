@@ -12,6 +12,7 @@ import org.bukkit.inventory.ItemStack;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -175,8 +176,9 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
     private void fishcurse(Player p) {
         p.sendMessage(mm.deserialize("<red>May the fishes have mercy on you."));
         org.bukkit.Location loc = p.getLocation();
-        List<Salmon> salmons = new ArrayList<>();
-        int taskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(manager.getPlugin(), () -> {
+        List<Salmon> salmons = Collections.synchronizedList(new ArrayList<>());
+        
+        Bukkit.getRegionScheduler().runAtFixedRate(manager.getPlugin(), loc, task -> {
             for (int i = 0; i < 3; i++) {
                 double xOffset = (random.nextDouble() - 0.5) * 16;
                 double zOffset = (random.nextDouble() - 0.5) * 16;
@@ -189,8 +191,9 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
                 salmons.add(salmon);
             }
         }, 0L, 15L);
-        Bukkit.getScheduler().runTaskLater(manager.getPlugin(), () -> {
-            Bukkit.getScheduler().cancelTask(taskId);
+        
+        Bukkit.getRegionScheduler().runDelayed(manager.getPlugin(), loc, task -> {
+            task.cancel();
             for (Salmon salmon : salmons) {
                 salmon.remove();
             }

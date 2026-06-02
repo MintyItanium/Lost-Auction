@@ -19,19 +19,20 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
 
 public class AuctionGUI implements Listener {
     private final AuctionManager manager;
-    private static final Map<Player, ItemStack> pendingSelection = new HashMap<>();
-    private static final Map<Player, String> pendingCategory = new HashMap<>();
-    private static final Map<Player, Auction.Type> pendingListingType = new HashMap<>();
-    private static final Map<Player, Long> pendingPrice = new HashMap<>();
-    private static final Map<Player, String> adminSelectedAuction = new HashMap<>();
-    private static final Map<Player, Double> priceFilterMin = new HashMap<>();
-    private static final Map<Player, Double> priceFilterMax = new HashMap<>();
-    private static final Map<UUID, UUID> viewingHistoryTarget = new HashMap<>();
+    private static final Map<Player, ItemStack> pendingSelection = new ConcurrentHashMap<>();
+    private static final Map<Player, String> pendingCategory = new ConcurrentHashMap<>();
+    private static final Map<Player, Auction.Type> pendingListingType = new ConcurrentHashMap<>();
+    private static final Map<Player, Long> pendingPrice = new ConcurrentHashMap<>();
+    private static final Map<Player, String> adminSelectedAuction = new ConcurrentHashMap<>();
+    private static final Map<Player, Double> priceFilterMin = new ConcurrentHashMap<>();
+    private static final Map<Player, Double> priceFilterMax = new ConcurrentHashMap<>();
+    private static final Map<UUID, UUID> viewingHistoryTarget = new ConcurrentHashMap<>();
 
     public AuctionGUI(AuctionManager m) { this.manager = m; }
 

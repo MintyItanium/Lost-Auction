@@ -59,9 +59,9 @@ public class AnvilListener implements Listener {
             String searchTerm = e.getMessage().toLowerCase().trim();
             awaitingSearch.remove(p);
 
-            Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
+            p.getScheduler().execute(manager.getPlugin(), () -> {
                 AuctionGUI.openSearchResults(p, manager, searchTerm, 0);
-            });
+            }, () -> {}, 0L);
             return;
         }
 
@@ -69,7 +69,7 @@ public class AnvilListener implements Listener {
             e.setCancelled(true);
             String msg = e.getMessage();
             awaitingPriceFilterMin.remove(p);
-            Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
+            p.getScheduler().execute(manager.getPlugin(), () -> {
                 String raw = msg.replaceAll("[^0-9\\.]", "");
                 double price;
                 if (msg.equalsIgnoreCase("none")) {
@@ -86,7 +86,7 @@ public class AnvilListener implements Listener {
                     AuctionGUI.setPriceFilterMin(p, price);
                 }
                 AuctionGUI.openPriceFilter(p, manager);
-            });
+            }, () -> {}, 0L);
             return;
         }
 
@@ -94,7 +94,7 @@ public class AnvilListener implements Listener {
             e.setCancelled(true);
             String msg = e.getMessage();
             awaitingPriceFilterMax.remove(p);
-            Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
+            p.getScheduler().execute(manager.getPlugin(), () -> {
                 String raw = msg.replaceAll("[^0-9\\.]", "");
                 double price;
                 if (msg.equalsIgnoreCase("none")) {
@@ -111,14 +111,14 @@ public class AnvilListener implements Listener {
                     AuctionGUI.setPriceFilterMax(p, price);
                 }
                 AuctionGUI.openPriceFilter(p, manager);
-            });
+            }, () -> {}, 0L);
             return;
         }
 
         if (awaitingAdminBid.containsKey(p)) {
             e.setCancelled(true);
             String msg = e.getMessage();
-            Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
+            p.getScheduler().execute(manager.getPlugin(), () -> {
                 String raw = msg.replaceAll("[^0-9\\.]", "");
                 double bid;
                 try { bid = Double.parseDouble(raw); } catch (Exception ex) {
@@ -138,14 +138,14 @@ public class AnvilListener implements Listener {
                     p.sendMessage("[AuctionAdmin] Bid/price changed to " + bid + " for auction " + aid + ".");
                 else
                     p.sendMessage("[AuctionAdmin] Auction not found.");
-            });
+            }, () -> {}, 0L);
             return;
         }
 
         if (!awaitingAuction.containsKey(p)) return;
         e.setCancelled(true);
         String msg = e.getMessage();
-        Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
+        p.getScheduler().execute(manager.getPlugin(), () -> {
             String raw = msg.replaceAll("[^0-9\\.]", "");
             double bid;
             try { bid = Double.parseDouble(raw); } catch (Exception ex) { p.sendMessage("Invalid bid"); awaitingAuction.remove(p); return; }
@@ -174,7 +174,7 @@ public class AnvilListener implements Listener {
             manager.save();
             p.sendMessage(ChatColor.GREEN + "Bid placed: " + bid);
             p.closeInventory();
-        });
+        }, () -> {}, 0L);
     }
 
     @EventHandler
