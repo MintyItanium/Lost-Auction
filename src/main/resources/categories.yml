@@ -20,6 +20,3 @@ categories:
   potions:
     name: "Potions and Effects"
     item: "POTION"
-  other:
-    name: "Other"
-    item: "BARRIER"
