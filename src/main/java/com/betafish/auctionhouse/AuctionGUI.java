@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.UUID;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class AuctionGUI implements Listener {
     private final AuctionManager manager;
@@ -869,6 +871,8 @@ public class AuctionGUI implements Listener {
             ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : Bukkit.getItemFactory().getItemMeta(item.getType());
             List<String> lore = new ArrayList<>();
             lore.add("ID: " + a.id);
+            SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm");
+            lore.add("Date: " + sdf.format(new Date(a.endTime)));
             lore.add("Type: " + (a.type == Auction.Type.FIXED ? "Buy it Now" : "Auction"));
 
             boolean isActive = manager.getAuction(a.id) != null;
@@ -941,6 +945,8 @@ public class AuctionGUI implements Listener {
             ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : Bukkit.getItemFactory().getItemMeta(item.getType());
             List<String> lore = new ArrayList<>();
             lore.add("ID: " + a.id);
+            SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm");
+            lore.add("Date: " + sdf.format(new Date(a.endTime)));
             lore.add("Seller: " + getPlayerName(a.seller));
             if (a.currentBidder != null) {
                 lore.add("Buyer: " + getPlayerName(a.currentBidder));
