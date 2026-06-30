@@ -6,5 +6,5 @@ max-bid-cap: 999000000
 buy-it-now-enabled: true
 easter-egg-enabled: true
 bypass-easter-egg-timer: false
-undo-purchase-enabled: true
+undo-purchase-enabled: false
 undo-purchase-time-minutes: 2
