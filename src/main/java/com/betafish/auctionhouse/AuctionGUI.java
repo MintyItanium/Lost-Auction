@@ -1321,6 +1321,7 @@ public class AuctionGUI implements Listener {
         if (a.type == Auction.Type.FIXED) {
             if (!manager.buyItNow(p, a)) { p.sendMessage("You cannot afford this item."); return; }
             p.sendMessage("[Auction] you bought the item for " + a.startingPrice);
+            openBrowseAuctions(p, manager, currentPage);
         } else {
             AnvilListener.openAnvilForBid(p, a, manager);
         }
