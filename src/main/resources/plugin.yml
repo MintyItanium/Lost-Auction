@@ -1,6 +1,6 @@
 name: LostAuction
 main: com.betafish.auctionhouse.LostAuction
-version: 1.1.0
+version: 1.1-Test-Build-1
 api-version: 1.21
 author: Betafish
 depend: [Vault]
