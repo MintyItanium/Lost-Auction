@@ -78,6 +78,18 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
                     p.sendMessage(mm.deserialize("<yellow>[Auction] Auto-claim disabled. Expired items go to Unclaimed Items."));
                 }
                 return true;
+            } else if (subcommand.equals("undo")) {
+                if (!manager.getPlugin().getConfig().getBoolean("undo-purchase-enabled", true)) {
+                    p.sendMessage(mm.deserialize("<red>[Auction] Undo purchase is disabled on this server."));
+                    return true;
+                }
+                AuctionManager.PurchaseRecord pr = manager.getPurchaseForUndo(p.getUniqueId());
+                if (pr == null) {
+                    p.sendMessage(mm.deserialize("<yellow>[Auction] You have no recent purchases to undo."));
+                    return true;
+                }
+                AuctionGUI.openUndoGui(p, manager);
+                return true;
             }
         }
 
@@ -156,6 +168,7 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
             if ("auction".startsWith(partial)) completions.add("auction");
             if ("history".startsWith(partial)) completions.add("history");
             if ("autoclaim".startsWith(partial)) completions.add("autoclaim");
+            if ("undo".startsWith(partial)) completions.add("undo");
             if ("fullhistory".startsWith(partial) && player.hasPermission("lost.auction.fullhistory")) {
                 completions.add("fullhistory");
             }

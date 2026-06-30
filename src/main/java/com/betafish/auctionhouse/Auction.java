@@ -3,6 +3,7 @@ package com.betafish.auctionhouse;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -19,6 +20,7 @@ public class Auction implements ConfigurationSerializable {
     public UUID currentBidder;
     public long endTime;
     public String category;
+    public int quantity;
 
     public Auction() {}
 
@@ -31,7 +33,8 @@ public class Auction implements ConfigurationSerializable {
         this.currentBid = 0.0;
         this.currentBidder = null;
         this.endTime = endTime;
-        this.category = "General"; // default category
+        this.category = "General";
+        this.quantity = item.getAmount();
     }
 
     @Override
@@ -39,13 +42,16 @@ public class Auction implements ConfigurationSerializable {
         Map<String, Object> m = new HashMap<>();
         m.put("id", id);
         m.put("seller", seller.toString());
-        m.put("item", item);
+        ItemStack forSerialization = item.clone();
+        forSerialization.setAmount(1);
+        m.put("itemData", Base64.getEncoder().encodeToString(forSerialization.serializeAsBytes()));
         m.put("type", type.name());
         m.put("startingPrice", startingPrice);
         m.put("currentBid", currentBid);
         m.put("currentBidder", currentBidder == null ? null : currentBidder.toString());
         m.put("endTime", endTime);
         m.put("category", category);
+        m.put("quantity", quantity);
         return m;
     }
 
@@ -53,7 +59,14 @@ public class Auction implements ConfigurationSerializable {
         Auction a = new Auction();
         a.id = (String) args.get("id");
         a.seller = UUID.fromString((String) args.get("seller"));
-        a.item = (ItemStack) args.get("item");
+        if (args.containsKey("itemData")) {
+            String b64 = (String) args.get("itemData");
+            a.item = ItemStack.deserializeBytes(Base64.getDecoder().decode(b64));
+        } else {
+            a.item = (ItemStack) args.get("item");
+        }
+        a.quantity = args.containsKey("quantity") ? ((Number) args.get("quantity")).intValue() : a.item.getAmount();
+        a.item.setAmount(a.quantity);
         a.type = Type.valueOf((String) args.get("type"));
         a.startingPrice = ((Number) args.get("startingPrice")).doubleValue();
         a.currentBid = args.get("currentBid") == null ? 0.0 : ((Number) args.get("currentBid")).doubleValue();

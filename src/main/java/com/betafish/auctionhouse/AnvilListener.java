@@ -17,6 +17,7 @@ public class AnvilListener implements Listener {
     public static final Map<Player, Boolean> awaitingPriceFilterMin = new ConcurrentHashMap<>();
     public static final Map<Player, Boolean> awaitingPriceFilterMax = new ConcurrentHashMap<>();
     public static final Map<Player, String> awaitingAdminBid = new ConcurrentHashMap<>();
+    public static final Map<Player, Boolean> awaitingHistorySearch = new ConcurrentHashMap<>();
     private final AuctionManager manager;
 
     public AnvilListener(AuctionManager manager) { this.manager = manager; }
@@ -50,6 +51,12 @@ public class AnvilListener implements Listener {
         awaitingPriceFilterMax.put(p, true);
     }
 
+    public static void promptHistorySearchInChat(Player p, AuctionManager manager) {
+        p.sendMessage("\n\u00A76Auction History Search\n\u00A7eEnter the item name to search in your history: \n");
+        p.closeInventory();
+        awaitingHistorySearch.put(p, true);
+    }
+
     @EventHandler
     public void onPlayerChat(AsyncPlayerChatEvent e) {
         Player p = e.getPlayer();
@@ -61,6 +68,16 @@ public class AnvilListener implements Listener {
 
             Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
                 AuctionGUI.openSearchResults(p, manager, searchTerm, 0);
+            });
+            return;
+        }
+
+        if (awaitingHistorySearch.containsKey(p)) {
+            e.setCancelled(true);
+            String searchTerm = e.getMessage().toLowerCase().trim();
+            awaitingHistorySearch.remove(p);
+            Bukkit.getScheduler().runTask(manager.getPlugin(), () -> {
+                AuctionGUI.openHistorySearch(p, manager, searchTerm, 0);
             });
             return;
         }
@@ -185,5 +202,6 @@ public class AnvilListener implements Listener {
         awaitingPriceFilterMin.remove(p);
         awaitingPriceFilterMax.remove(p);
         awaitingAdminBid.remove(p);
+        awaitingHistorySearch.remove(p);
     }
 }
