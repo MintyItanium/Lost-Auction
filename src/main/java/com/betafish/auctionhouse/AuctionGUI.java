@@ -2000,10 +2000,46 @@ public class AuctionGUI implements Listener {
                 removeMeta.setLore(removeLore);
                 toRemove.setItemMeta(removeMeta);
             }
-            boolean hasItems = p.getInventory().removeItem(toRemove).isEmpty();
-            if (!hasItems) {
+            int totalInInventory = 0;
+            for (ItemStack invItem : p.getInventory().getContents()) {
+                if (invItem != null && toRemove.isSimilar(invItem)) {
+                    totalInInventory += invItem.getAmount();
+                }
+            }
+            if (totalInInventory < amount) {
                 p.sendMessage(ChatColor.RED + "[Auction] You don't have enough of this item to list.");
             } else {
+                java.util.HashMap<Integer, ItemStack> leftover = p.getInventory().removeItem(toRemove);
+                int remainingToRemove = 0;
+                for (ItemStack left : leftover.values()) {
+                    remainingToRemove += left.getAmount();
+                }
+                if (remainingToRemove > 0) {
+                    java.util.List<ItemStack> extraSlots = java.util.Arrays.asList(
+                        p.getInventory().getItemInOffHand(),
+                        p.getInventory().getHelmet(),
+                        p.getInventory().getChestplate(),
+                        p.getInventory().getLeggings(),
+                        p.getInventory().getBoots()
+                    );
+                    for (int si = 0; si < extraSlots.size() && remainingToRemove > 0; si++) {
+                        ItemStack slot = extraSlots.get(si);
+                        if (slot != null && toRemove.isSimilar(slot)) {
+                            int take = Math.min(remainingToRemove, slot.getAmount());
+                            slot.setAmount(slot.getAmount() - take);
+                            remainingToRemove -= take;
+                            if (slot.getAmount() <= 0) {
+                                switch (si) {
+                                    case 0: p.getInventory().setItemInOffHand(null); break;
+                                    case 1: p.getInventory().setHelmet(null); break;
+                                    case 2: p.getInventory().setChestplate(null); break;
+                                    case 3: p.getInventory().setLeggings(null); break;
+                                    case 4: p.getInventory().setBoots(null); break;
+                                }
+                            }
+                        }
+                    }
+                }
                 ItemStack listed = item.clone();
                 listed.setAmount(amount);
                 ItemMeta listedMeta = listed.getItemMeta();
