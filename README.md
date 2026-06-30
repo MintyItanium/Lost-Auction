@@ -54,7 +54,7 @@ a Auction House plugin for Paper 1.21.x
 | `/auction history`                  | View your personal auction history            | `lost.auction`             |
 | `/auction search`                   | Open search and filter interface              | `lost.auction`             |
 | `/auction autoclaim`                | Toggle autoclaiming auctions                  | `lost.auction`             |
-| `/auction undo`                     | Undo your most recent purchase                | `lost.auction`             |
+| `/auction refund`                   | Refunds your most recent purchase             | `lost.auction`             |
 | `/auctionadmin`                     | Open admin panel for auctions                 | `lost.auction.admin`       |
 | `/auction fullhistory`              | View all auction history                      | `lost.auction.fullhistory` |
 
