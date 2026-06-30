@@ -106,16 +106,38 @@ public class AuctionManager {
         if (data.isConfigurationSection("deliveries")) {
             for (String s : data.getConfigurationSection("deliveries").getKeys(false)) {
                 UUID u = UUID.fromString(s);
-                List<ItemStack> list = (List<ItemStack>) data.get("deliveries." + s);
-                pendingDeliveries.put(u, list == null ? new ArrayList<>() : list);
+                List<ItemStack> list = new ArrayList<>();
+                List<?> raw = data.getList("deliveries." + s);
+                if (raw != null) {
+                    for (Object obj : raw) {
+                        if (obj instanceof ItemStack) {
+                            list.add((ItemStack) obj);
+                        } else if (obj instanceof String) {
+                            ItemStack item = itemFromBase64((String) obj);
+                            if (item != null) list.add(item);
+                        }
+                    }
+                }
+                pendingDeliveries.put(u, list);
             }
         }
 
         if (data.isConfigurationSection("reclaims")) {
             for (String s : data.getConfigurationSection("reclaims").getKeys(false)) {
                 UUID u = UUID.fromString(s);
-                List<ItemStack> list = (List<ItemStack>) data.get("reclaims." + s);
-                reclaimableItems.put(u, list == null ? new ArrayList<>() : list);
+                List<ItemStack> list = new ArrayList<>();
+                List<?> raw = data.getList("reclaims." + s);
+                if (raw != null) {
+                    for (Object obj : raw) {
+                        if (obj instanceof ItemStack) {
+                            list.add((ItemStack) obj);
+                        } else if (obj instanceof String) {
+                            ItemStack item = itemFromBase64((String) obj);
+                            if (item != null) list.add(item);
+                        }
+                    }
+                }
+                reclaimableItems.put(u, list);
             }
         }
 
@@ -168,6 +190,44 @@ public class AuctionManager {
         }
     }
 
+    private List<String> itemToBase64(ItemStack item) {
+        List<String> result = new ArrayList<>();
+        try {
+            result.add(Base64.getEncoder().encodeToString(item.serializeAsBytes()));
+            return result;
+        } catch (Exception ex) {
+            int max = item.getType().getMaxStackSize();
+            int remaining = item.getAmount();
+            List<ItemStack> split = new ArrayList<>();
+            while (remaining > 0) {
+                ItemStack part = item.clone();
+                int amt = Math.min(remaining, max);
+                part.setAmount(amt);
+                split.add(part);
+                remaining -= amt;
+            }
+            plugin.getLogger().warning("Split item " + item.getType() + " (" + item.getAmount() + ") into " + split.size() + " stacks of " + max);
+            for (ItemStack part : split) {
+                try {
+                    result.add(Base64.getEncoder().encodeToString(part.serializeAsBytes()));
+                } catch (Exception e2) {
+                    String msg = "[LOST-AUCTION] FISHCHECK: " + e2.getMessage();
+                    plugin.getLogger().severe(msg);
+                    System.out.println(msg);
+                }
+            }
+            return result;
+        }
+    }
+
+    private ItemStack itemFromBase64(String b64) {
+        try {
+            return ItemStack.deserializeBytes(Base64.getDecoder().decode(b64));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public void save() {
         try {
             data = YamlConfiguration.loadConfiguration(dataFile);
@@ -178,12 +238,20 @@ public class AuctionManager {
 
             data.set("deliveries", null);
             for (Map.Entry<UUID, List<ItemStack>> e : pendingDeliveries.entrySet()) {
-                data.set("deliveries." + e.getKey().toString(), e.getValue());
+                List<String> list = new ArrayList<>();
+                for (ItemStack item : e.getValue()) {
+                    list.addAll(itemToBase64(item));
+                }
+                data.set("deliveries." + e.getKey().toString(), list);
             }
 
             data.set("reclaims", null);
             for (Map.Entry<UUID, List<ItemStack>> e : reclaimableItems.entrySet()) {
-                data.set("reclaims." + e.getKey().toString(), e.getValue());
+                List<String> list = new ArrayList<>();
+                for (ItemStack item : e.getValue()) {
+                    list.addAll(itemToBase64(item));
+                }
+                data.set("reclaims." + e.getKey().toString(), list);
             }
 
             List<String> autoClaimList = new ArrayList<>();
