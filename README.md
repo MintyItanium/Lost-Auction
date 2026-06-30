@@ -1,11 +1,11 @@
 # Auction House
 
-a Auction House plugin for Paper 1.21.x
+a Auction House plugin for Paper 1.21-26.1.2
 
 ## Requirements
 
-- Paper server 1.21.x or ShreddedPaper 1.21.11
-- Vault plugin
+- Paper server 1.21-26.1.2 or ShreddedPaper 1.21.11-26.1.2
+- VaultAPI
 - EssentialsX
 - Java 21+
 
@@ -54,7 +54,7 @@ a Auction House plugin for Paper 1.21.x
 | `/auction history`                  | View your personal auction history            | `lost.auction`             |
 | `/auction search`                   | Open search and filter interface              | `lost.auction`             |
 | `/auction autoclaim`                | Toggle autoclaiming auctions                  | `lost.auction`             |
-| `/auction refund`                   | Refunds your most recent purchase             | `lost.auction`             |
+| `/auction refund`                   | Refunds your most recent purchase (Must be enabled in config)             | `lost.auction`             |
 | `/auctionadmin`                     | Open admin panel for auctions                 | `lost.auction.admin`       |
 | `/auction fullhistory`              | View all auction history                      | `lost.auction.fullhistory` |
 
@@ -69,6 +69,7 @@ a Auction House plugin for Paper 1.21.x
 Use **JDK 21** To build.
 
 ```bash
+git clone https://github.com/MintyItanium/Lost-Auction.git
 mvn clean package
 ```
 
