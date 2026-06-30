@@ -437,6 +437,7 @@ public class AuctionGUI implements Listener {
             List<String> lore = new ArrayList<>();
             if (a.type == Auction.Type.FIXED) lore.add("Price: " + a.startingPrice);
             else lore.add("Current bid: " + (a.currentBidder == null ? a.startingPrice : a.currentBid));
+            lore.add("Amount: " + a.item.getAmount());
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             lore.add("Seller: " + getPlayerName(a.seller));
@@ -590,6 +591,7 @@ public class AuctionGUI implements Listener {
             lore.add("Type: " + a.type.name());
             if (a.type == Auction.Type.FIXED) lore.add("Price: " + a.startingPrice);
             else lore.add("Current bid: " + (a.currentBidder == null ? a.startingPrice : a.currentBid));
+            lore.add("Amount: " + a.item.getAmount());
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             lore.add("");
@@ -779,6 +781,7 @@ public class AuctionGUI implements Listener {
             List<String> lore = new ArrayList<>();
             if (a.type == Auction.Type.FIXED) lore.add("Price: " + a.startingPrice);
             else lore.add("Current bid: " + (a.currentBidder == null ? a.startingPrice : a.currentBid));
+            lore.add("Amount: " + a.item.getAmount());
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add("Ends in: " + formatDuration(remaining));
             lore.add("Seller: " + getPlayerName(a.seller));
@@ -906,6 +909,7 @@ public class AuctionGUI implements Listener {
                 String status = a.currentBidder != null ? "Sold/Won" : "Expired/No bids";
                 lore.add("Status: " + status);
             }
+            lore.add("Amount: " + a.item.getAmount());
 
             String role = a.seller.equals(targetUUID) ? "Seller" : "Bidder";
             lore.add((viewingSelf ? "Your Role: " : "Role: ") + role);
@@ -994,6 +998,7 @@ public class AuctionGUI implements Listener {
                 String status = a.currentBidder != null ? "Sold" : "Expired";
                 lore.add("Status: " + status);
             }
+            lore.add("Amount: " + a.item.getAmount());
 
             meta.setLore(lore);
             String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
@@ -1060,6 +1065,7 @@ public class AuctionGUI implements Listener {
                 lore.add(ChatColor.GRAY + "Starting: $" + a.startingPrice);
                 lore.add(ChatColor.GRAY + "Current bid: $" + (a.currentBidder == null ? a.startingPrice : a.currentBid));
             }
+            lore.add(ChatColor.GRAY + "Amount: " + a.item.getAmount());
             long remaining = a.endTime - System.currentTimeMillis();
             lore.add(ChatColor.GRAY + "Ends in: " + formatDuration(remaining));
             lore.add("");
