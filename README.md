@@ -15,7 +15,7 @@ a Auction House plugin for Paper 1.21.x
 
 - **Fixed Price Selling**: Sell items at a set price - instant purchase
 - **Real Auctions**: Start with a minimum bid, accept higher bids until time expires
-- **Auction History**: Track all your past auctions and bids
+- **Auction History**: Track all your past auctions and bids, and search by item name
 
 ### Search & Filtering
 
@@ -32,6 +32,7 @@ a Auction House plugin for Paper 1.21.x
 
 - **Force End Auctions**: Admin command to end auctions early
 - **View All History**: Admin access to complete auction history (WIP)
+- **Logging**: debug logs written to `plugins/LostAuction/logs/debug-YYYY-MM-DD-HH.log` (one file per hour)
 
 **Category Configuration:**
 
@@ -45,16 +46,17 @@ a Auction House plugin for Paper 1.21.x
 ### Player Commands
 
 
-| Command                             |                                                | Permission                 |
-| ------------------------------------- | ------------------------------------------------ | ---------------------------- |
-| `/auction`                          | Open the auction house GUI                     | `lost.auction`             |
-| `/auction sell <price>`             | Put item in your hand up for fixed-price sale  | `lost.auction`             |
-| `/auction auction <starting_price>` | Put item in your hand up for a auction | `lost.auction`             |
-| `/auction history`                  | View your personal auction history             | `lost.auction`             |
-| `/auction search`                   | Open search and filter interface               | `lost.auction`             |
-| `/auction autoclaim`                | Toggle autoclaiming auctions                   | `lost.auction`             |
-| `/auctionadmin`                     | Open admin panel for auctions                  | `lost.auction.admin`       |
-| `/auction fullhistory`              | View all auction history                       | `lost.auction.fullhistory` |
+| Command                             |                                               | Permission                 |
+| ------------------------------------- | ----------------------------------------------- | ---------------------------- |
+| `/auction`                          | Open the auction house GUI                    | `lost.auction`             |
+| `/auction sell <price>`             | Put item in your hand up for fixed-price sale | `lost.auction`             |
+| `/auction auction <starting_price>` | Put item in your hand up for a auction        | `lost.auction`             |
+| `/auction history`                  | View your personal auction history            | `lost.auction`             |
+| `/auction search`                   | Open search and filter interface              | `lost.auction`             |
+| `/auction autoclaim`                | Toggle autoclaiming auctions                  | `lost.auction`             |
+| `/auction undo`                     | Undo your most recent purchase                | `lost.auction`             |
+| `/auctionadmin`                     | Open admin panel for auctions                 | `lost.auction.admin`       |
+| `/auction fullhistory`              | View all auction history                      | `lost.auction.fullhistory` |
 
 ## Permissions
 
@@ -72,6 +74,9 @@ mvn clean package
 
 Place the jar file in "/target" into your server `plugins/` folder, along with Vault and EssentialsX, then start the server.
 
-#### Gitlab Mirror
+#### Notes
+
 a mirror of the source code can be found at: https://gitlab.com/MintyItanium/Lost-Auction
+
+https://bstats.org/plugin/bukkit/Lost%20Auction/32291
 

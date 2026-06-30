@@ -30,10 +30,12 @@ public class AuctionGUI implements Listener {
     private static final Map<Player, String> pendingCategory = new HashMap<>();
     private static final Map<Player, Auction.Type> pendingListingType = new HashMap<>();
     private static final Map<Player, Long> pendingPrice = new HashMap<>();
+    private static final Map<Player, Integer> pendingAmount = new HashMap<>();
     private static final Map<Player, String> adminSelectedAuction = new HashMap<>();
     private static final Map<Player, Double> priceFilterMin = new HashMap<>();
     private static final Map<Player, Double> priceFilterMax = new HashMap<>();
     private static final Map<UUID, UUID> viewingHistoryTarget = new HashMap<>();
+    private static final Map<UUID, String> pendingUndo = new HashMap<>();
 
     public AuctionGUI(AuctionManager m) { this.manager = m; }
 
@@ -202,6 +204,24 @@ public class AuctionGUI implements Listener {
         toggleMeta.setLore(toggleLore);
         toggleBtn.setItemMeta(toggleMeta);
         inv.setItem(13, toggleBtn);
+
+        // New listing notifications toggle
+        boolean notifyListings = manager.hasNewListingNotifications(p.getUniqueId());
+        ItemStack notifyBtn = new ItemStack(Material.BELL);
+        ItemMeta notifyMeta = notifyBtn.getItemMeta();
+        notifyMeta.setDisplayName((notifyListings ? ChatColor.GREEN : ChatColor.RED) + "New Listing Notifications");
+        List<String> notifyLore = new ArrayList<>();
+        notifyLore.add(ChatColor.GRAY + "Get notified when new items are listed");
+        if (notifyListings) {
+            notifyLore.add(ChatColor.GREEN + "Enabled: You'll be notified of new listings");
+        } else {
+            notifyLore.add(ChatColor.RED + "Disabled: No new listing notifications");
+        }
+        notifyLore.add("");
+        notifyLore.add(ChatColor.GRAY + "Click to toggle");
+        notifyMeta.setLore(notifyLore);
+        notifyBtn.setItemMeta(notifyMeta);
+        inv.setItem(15, notifyBtn);
 
         // Back button
         ItemStack backBtn = new ItemStack(Material.BARRIER);
@@ -918,6 +938,16 @@ public class AuctionGUI implements Listener {
             inv.setItem(53, nextBtn);
         }
 
+        // Search history button
+        ItemStack searchHistBtn = new ItemStack(Material.COMPASS);
+        ItemMeta searchHistMeta = searchHistBtn.getItemMeta();
+        searchHistMeta.setDisplayName(ChatColor.YELLOW + "Search History");
+        List<String> shLore = new ArrayList<>();
+        shLore.add(ChatColor.GRAY + "Click to search your auction history");
+        searchHistMeta.setLore(shLore);
+        searchHistBtn.setItemMeta(searchHistMeta);
+        inv.setItem(48, searchHistBtn);
+
         ItemStack backBtn = new ItemStack(Material.BARRIER);
         ItemMeta backMeta = backBtn.getItemMeta();
         backMeta.setDisplayName(ChatColor.RED + "Back to Auction House");
@@ -1165,6 +1195,7 @@ public class AuctionGUI implements Listener {
     }
     @EventHandler
     public void onInventoryClickSearchResults(InventoryClickEvent e) {
+        if (!(e.getInventory().getHolder() instanceof AuctionHolder)) return;
         String title = e.getView().getTitle();
         if (!title.startsWith("Search Results:")) return;
         e.setCancelled(true);
@@ -1182,9 +1213,10 @@ public class AuctionGUI implements Listener {
             openSearch(p, manager);
             return;
         } else if (displayName.equals(ChatColor.YELLOW + "Previous Page") || displayName.equals(ChatColor.YELLOW + "Next Page")) {
-            int termStart = title.indexOf("'") + 1;
-            int termEnd = title.indexOf("'", termStart);
-            String searchTerm = title.substring(termStart, termEnd);
+            int termStart = title.indexOf("'");
+            int termEnd = termStart >= 0 ? title.indexOf("'", termStart + 1) : -1;
+            if (termStart < 0 || termEnd < 0) return;
+            String searchTerm = title.substring(termStart + 1, termEnd);
 
             int currentPage = 0;
             int pageIdx = title.lastIndexOf(" - Page ");
@@ -1195,6 +1227,49 @@ public class AuctionGUI implements Listener {
             }
             int newPage = displayName.equals(ChatColor.YELLOW + "Previous Page") ? Math.max(0, currentPage - 1) : currentPage + 1;
             openSearchResults(p, manager, searchTerm, newPage);
+            return;
+        }
+
+        int termStart = title.indexOf("'");
+        int termEnd = termStart >= 0 ? title.indexOf("'", termStart + 1) : -1;
+        if (termStart < 0 || termEnd < 0) return;
+        String searchTerm = title.substring(termStart + 1, termEnd);
+
+        int currentPage = 0;
+        int pageIdx = title.lastIndexOf(" - Page ");
+        if (pageIdx >= 0) {
+            try {
+                currentPage = Integer.parseInt(title.substring(pageIdx + 8)) - 1;
+            } catch (NumberFormatException ignored) {}
+        }
+
+        List<Auction> searchResults = new ArrayList<>();
+        for (Auction a : manager.listAuctions()) {
+            if (a.type == Auction.Type.FIXED && !manager.isBuyItNowEnabled()) continue;
+            String itemName = a.item.getType().name().toLowerCase();
+            if (a.item.hasItemMeta() && a.item.getItemMeta().hasDisplayName()) {
+                itemName = a.item.getItemMeta().getDisplayName().toLowerCase();
+            }
+            if (itemName.contains(searchTerm.toLowerCase())) {
+                searchResults.add(a);
+            }
+        }
+        int slot = e.getSlot();
+        int auctionIndex = currentPage * 45 + slot;
+        if (auctionIndex >= searchResults.size()) return;
+        Auction a = searchResults.get(auctionIndex);
+
+        if (a.seller.equals(p.getUniqueId())) {
+            p.sendMessage(ChatColor.RED + "[Auction] You cannot bid on or buy your own listing.");
+            return;
+        }
+
+        if (a.type == Auction.Type.FIXED) {
+            if (!manager.buyItNow(p, a)) { p.sendMessage("You cannot afford this item."); return; }
+            p.sendMessage("[Auction] you bought the item for " + a.startingPrice);
+            openSearchResults(p, manager, searchTerm, currentPage);
+        } else {
+            AnvilListener.openAnvilForBid(p, a, manager);
         }
     }
     @EventHandler
@@ -1599,6 +1674,13 @@ public class AuctionGUI implements Listener {
         if (a.type == Auction.Type.FIXED) {
             if (!manager.buyItNow(p, a)) { p.sendMessage("You cannot afford this item."); return; }
             p.sendMessage("[Auction] you bought the item for " + a.startingPrice);
+            if (isPriceFilter) {
+                openFilteredByPrice(p, manager, currentPage);
+            } else {
+                Auction.Type filterType = title.contains("FIXED") ? Auction.Type.FIXED : Auction.Type.AUCTION;
+                openFilteredAuctions(p, manager, filterType, currentPage);
+            }
+            return;
         } else {
             AnvilListener.openAnvilForBid(p, a, manager);
         }
@@ -1750,8 +1832,9 @@ public class AuctionGUI implements Listener {
         if (a.type == Auction.Type.FIXED) {
             if (!manager.buyItNow(p, a)) { p.sendMessage("You cannot afford this item."); return; }
             p.sendMessage("[Auction] you bought the item for " + a.startingPrice);
+            openFilteredCategoryAuctions(p, manager, category, currentPage);
+            return;
         } else {
-            // open anvil to input bid
             AnvilListener.openAnvilForBid(p, a, manager);
         }
     }
@@ -1803,6 +1886,23 @@ public class AuctionGUI implements Listener {
         preview.setItemMeta(previewMeta);
         inv.setItem(13, preview);
 
+        ItemStack cleanItem = item.clone();
+        ItemMeta cleanMeta = cleanItem.getItemMeta();
+        if (cleanMeta != null && cleanMeta.getLore() != null) {
+            List<String> lore = new ArrayList<>(cleanMeta.getLore());
+            lore.removeIf(l -> l.startsWith("CATEGORY:"));
+            cleanMeta.setLore(lore);
+            cleanItem.setItemMeta(cleanMeta);
+        }
+        int totalOwned = 0;
+        for (ItemStack invItem : p.getInventory().getContents()) {
+            if (invItem != null && cleanItem.isSimilar(invItem)) {
+                totalOwned += invItem.getAmount();
+            }
+        }
+        int defaultAmount = Math.min(pendingAmount.getOrDefault(p, item.getAmount()), totalOwned > 0 ? totalOwned : item.getAmount());
+        int currentAmount = defaultAmount;
+
         inv.setItem(19, makeAdjustButton(Material.RED_STAINED_GLASS_PANE, ChatColor.RED, "-100"));
         inv.setItem(20, makeAdjustButton(Material.RED_STAINED_GLASS_PANE, ChatColor.RED, "-10"));
         inv.setItem(21, makeAdjustButton(Material.RED_STAINED_GLASS_PANE, ChatColor.RED, "-1"));
@@ -1811,6 +1911,20 @@ public class AuctionGUI implements Listener {
         inv.setItem(24, makeAdjustButton(Material.LIME_STAINED_GLASS_PANE, ChatColor.GREEN, "+10"));
         inv.setItem(25, makeAdjustButton(Material.LIME_STAINED_GLASS_PANE, ChatColor.GREEN, "+100"));
 
+        ItemStack amountBtn = new ItemStack(Material.REPEATER);
+        ItemMeta amountMeta = amountBtn.getItemMeta();
+        amountMeta.setDisplayName(ChatColor.AQUA + "Amount: " + currentAmount);
+        List<String> amountLore = new ArrayList<>();
+        amountLore.add(ChatColor.GRAY + "Quantity to list (you have " + totalOwned + ")");
+        amountMeta.setLore(amountLore);
+        amountBtn.setItemMeta(amountMeta);
+        inv.setItem(28, makeAdjustButton(Material.RED_STAINED_GLASS_PANE, ChatColor.RED, "-64"));
+        inv.setItem(29, makeAdjustButton(Material.RED_STAINED_GLASS_PANE, ChatColor.RED, "-1"));
+        inv.setItem(30, amountBtn);
+        inv.setItem(31, makeAdjustButton(Material.LIME_STAINED_GLASS_PANE, ChatColor.GREEN, "+1"));
+        inv.setItem(32, makeAdjustButton(Material.LIME_STAINED_GLASS_PANE, ChatColor.GREEN, "+64"));
+        inv.setItem(33, makeAdjustButton(Material.LIME_STAINED_GLASS_PANE, ChatColor.GREEN, "+" + totalOwned));
+
         ItemStack infoItem = new ItemStack(type == Auction.Type.FIXED ? Material.PAPER : Material.ANVIL);
         ItemMeta infoMeta = infoItem.getItemMeta();
         infoMeta.setDisplayName(ChatColor.AQUA + (type == Auction.Type.FIXED ? "Fixed Price Listing" : "Auction Listing"));
@@ -1818,7 +1932,7 @@ public class AuctionGUI implements Listener {
         infoLore.add(ChatColor.GRAY + "Category: " + category);
         infoMeta.setLore(infoLore);
         infoItem.setItemMeta(infoMeta);
-        inv.setItem(31, infoItem);
+        inv.setItem(34, infoItem);
 
         ItemStack cancelBtn = new ItemStack(Material.BARRIER);
         ItemMeta cancelMeta = cancelBtn.getItemMeta();
@@ -1849,35 +1963,89 @@ public class AuctionGUI implements Listener {
         String displayName = clickedMeta.getDisplayName();
 
         if (displayName.equals(ChatColor.RED + "Cancel Listing")) {
-            ItemStack item = pendingSelection.remove(p);
+            pendingSelection.remove(p);
             pendingCategory.remove(p);
             pendingListingType.remove(p);
             pendingPrice.remove(p);
-            if (item != null) {
-                HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(AuctionManager.stripCategoryLore(item));
-                for (ItemStack drop : overflow.values()) {
-                    p.getWorld().dropItemNaturally(p.getLocation(), drop);
-                }
-            }
+            pendingAmount.remove(p);
             p.sendMessage(ChatColor.YELLOW + "[Auction] Cancelled listing.");
             p.closeInventory();
             return;
         }
 
         if (displayName.equals(ChatColor.GREEN + "Confirm Listing")) {
-            ItemStack item = pendingSelection.remove(p);
-            String category = pendingCategory.remove(p);
-            Auction.Type type = pendingListingType.remove(p);
-            Long price = pendingPrice.remove(p);
+            ItemStack item = pendingSelection.get(p);
+            String category = pendingCategory.get(p);
+            Auction.Type type = pendingListingType.get(p);
+            Long price = pendingPrice.get(p);
+            int amount = pendingAmount.getOrDefault(p, item != null ? item.getAmount() : 1);
             if (item == null || category == null || type == null || price == null) {
                 p.sendMessage("No listing in progress.");
                 p.closeInventory();
                 return;
             }
             long duration = manager.getPlugin().getConfig().getLong("default-duration-hours", 24) * 3600L * 1000L;
-            manager.createAuction(p.getUniqueId(), item.clone(), type, price, duration, category);
-            p.sendMessage(ChatColor.GREEN + "[Auction] Listed for $" + price + "!");
+            ItemStack toRemove = item.clone();
+            toRemove.setAmount(amount);
+            ItemMeta removeMeta = toRemove.getItemMeta();
+            if (removeMeta != null && removeMeta.getLore() != null) {
+                List<String> removeLore = new ArrayList<>(removeMeta.getLore());
+                removeLore.removeIf(l -> l.startsWith("CATEGORY:"));
+                removeMeta.setLore(removeLore);
+                toRemove.setItemMeta(removeMeta);
+            }
+            boolean hasItems = p.getInventory().removeItem(toRemove).isEmpty();
+            if (!hasItems) {
+                p.sendMessage(ChatColor.RED + "[Auction] You don't have enough of this item to list.");
+            } else {
+                ItemStack listed = item.clone();
+                listed.setAmount(amount);
+                ItemMeta listedMeta = listed.getItemMeta();
+                if (listedMeta != null && listedMeta.getLore() != null) {
+                    List<String> listedLore = new ArrayList<>(listedMeta.getLore());
+                    listedLore.removeIf(l -> l.startsWith("CATEGORY:"));
+                    listedMeta.setLore(listedLore);
+                    listed.setItemMeta(listedMeta);
+                }
+                manager.createAuction(p.getUniqueId(), listed, type, price, duration, category);
+                p.sendMessage(ChatColor.GREEN + "[Auction] Listed " + amount + "x for $" + price + "!");
+            }
+            pendingSelection.remove(p);
+            pendingCategory.remove(p);
+            pendingListingType.remove(p);
+            pendingPrice.remove(p);
+            pendingAmount.remove(p);
             p.closeInventory();
+            return;
+        }
+
+        int slot = e.getSlot();
+        ItemStack selItem = pendingSelection.get(p);
+        int maxAmount = selItem != null ? selItem.getAmount() : 1;
+
+        if (slot >= 28 && slot <= 33) {
+            if (slot == 30) return;
+            try {
+                String stripped = ChatColor.stripColor(displayName);
+                boolean isPlus = stripped.startsWith("+");
+                long delta = Long.parseLong(stripped.replace("+", "").replace("-", ""));
+                int current = pendingAmount.getOrDefault(p, maxAmount);
+                int updated;
+                if (!isPlus) {
+                    updated = Math.max(1, current - (int) delta);
+                } else {
+                    updated = (int) Math.min(maxAmount, current + delta);
+                }
+                pendingAmount.put(p, updated);
+                ItemStack amountBtn = new ItemStack(Material.REPEATER);
+                ItemMeta am = amountBtn.getItemMeta();
+                am.setDisplayName(ChatColor.AQUA + "Amount: " + updated);
+                List<String> al = new ArrayList<>();
+                al.add(ChatColor.GRAY + "Quantity to list (you have " + maxAmount + ")");
+                am.setLore(al);
+                amountBtn.setItemMeta(am);
+                e.getInventory().setItem(30, amountBtn);
+            } catch (NumberFormatException ex) {}
             return;
         }
 
@@ -1980,6 +2148,9 @@ public class AuctionGUI implements Listener {
         if (displayName.endsWith("Auto-Claim Items")) {
             manager.toggleAutoClaim(p.getUniqueId());
             openSettings(p, manager);
+        } else if (displayName.endsWith("New Listing Notifications")) {
+            manager.toggleNewListingNotifications(p.getUniqueId());
+            openSettings(p, manager);
         } else if (displayName.equals(ChatColor.RED + "Back to Auction House")) {
             openMain(p, manager);
         }
@@ -2054,12 +2225,8 @@ public class AuctionGUI implements Listener {
         if (clickedMeta != null && clickedMeta.hasDisplayName()) {
             String displayName = clickedMeta.getDisplayName();
             if (displayName.equals(ChatColor.RED + "Back to Item Selection")) {
-                // Return to item selection
-                ItemStack selectedItem = pendingSelection.get(p);
-                if (selectedItem != null) {
-                    p.getInventory().addItem(selectedItem);
-                    pendingSelection.remove(p);
-                }
+                pendingSelection.remove(p);
+                pendingAmount.remove(p);
                 openSelectItem(p, manager);
                 return;
             } else if (displayName.startsWith(ChatColor.GREEN.toString())) {
@@ -2089,11 +2256,17 @@ public class AuctionGUI implements Listener {
             if (clicked == null || clicked.getType() == Material.AIR) return;
             if (clicked.getType() == Material.BARRIER) { openMain(p, manager); return; }
 
-            // remove one matching stack from player's inventory and store selection
             ItemStack sel = clicked.clone();
-            // try to remove the exact stack (amount included)
-            p.getInventory().removeItem(sel);
+            int stackAmount = sel.getAmount();
+            int total = 0;
+            for (ItemStack invItem : p.getInventory().getContents()) {
+                if (invItem != null && invItem.isSimilar(sel)) {
+                    total += invItem.getAmount();
+                }
+            }
+            sel.setAmount(total);
             pendingSelection.put(p, sel);
+            pendingAmount.put(p, stackAmount);
             openChooseCategory(p, manager, sel);
             return;
         }
@@ -2131,7 +2304,7 @@ public class AuctionGUI implements Listener {
                 openSetPrice(p, manager);
             } else {
                 pendingSelection.remove(p);
-                p.getInventory().addItem(AuctionManager.stripCategoryLore(sel));
+                pendingAmount.remove(p);
                 p.sendMessage("Cancelled listing.");
                 p.closeInventory();
             }
@@ -2205,7 +2378,7 @@ public class AuctionGUI implements Listener {
         } else if (display.equals(ChatColor.LIGHT_PURPLE + "Copy Item")) {
             Auction a = manager.getAuction(auctionId);
             if (a != null) {
-                ItemStack copy = a.item.clone();
+                ItemStack copy = AuctionManager.stripCategoryLore(a.item.clone());
                 HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(copy);
                 for (ItemStack drop : overflow.values()) {
                     p.getWorld().dropItemNaturally(p.getLocation(), drop);
@@ -2239,18 +2412,180 @@ public class AuctionGUI implements Listener {
                     || newTitle.equals("Select Item to List")) {
                 return;
             }
-            ItemStack item = pendingSelection.remove(p);
+            pendingSelection.remove(p);
             pendingCategory.remove(p);
             pendingListingType.remove(p);
             pendingPrice.remove(p);
-            if (item != null) {
-                HashMap<Integer, ItemStack> overflow = p.getInventory().addItem(AuctionManager.stripCategoryLore(item));
-                for (ItemStack drop : overflow.values()) {
-                    p.getWorld().dropItemNaturally(p.getLocation(), drop);
-                }
-                p.sendMessage(ChatColor.YELLOW + "[Auction] Returned item from cancelled listing.");
-            }
+            pendingAmount.remove(p);
         });
+    }
+
+    public static void openHistorySearch(Player p, AuctionManager manager, String searchTerm, int page) {
+        if (!p.hasPermission("lost.auction")) {
+            p.sendMessage("You do not have permission to use the auction house.");
+            return;
+        }
+        UUID target = viewingHistoryTarget.getOrDefault(p.getUniqueId(), p.getUniqueId());
+        String targetName = target.equals(p.getUniqueId()) ? "Your" : getPlayerName(target) + "'s";
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 54, targetName + " History Search: '" + searchTerm + "' - Page " + (page + 1));
+        fillBorder(inv);
+        if (target.equals(p.getUniqueId())) {
+            setBalanceItem(inv, p, manager, 4);
+        }
+
+        List<Auction> history = manager.searchPlayerHistory(target, searchTerm);
+        int itemsPerPage = 28;
+        int startIndex = page * itemsPerPage;
+        int endIndex = Math.min(startIndex + itemsPerPage, history.size());
+
+        for (int i = startIndex; i < endIndex; i++) {
+            int idx = i - startIndex;
+            int row = idx / 7 + 1;
+            int col = idx % 7 + 1;
+            Auction a = history.get(i);
+            ItemStack item = a.item.clone();
+            ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : Bukkit.getItemFactory().getItemMeta(item.getType());
+            List<String> lore = new ArrayList<>();
+            lore.add("ID: " + a.id);
+            SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm");
+            lore.add("Date: " + sdf.format(new Date(a.endTime)));
+            lore.add("Type: " + (a.type == Auction.Type.FIXED ? "Buy it Now" : "Auction"));
+            boolean isActive = manager.getAuction(a.id) != null;
+            if (isActive) {
+                lore.add("Status: Active");
+                lore.add("Current Price: $" + (a.currentBid > 0 ? a.currentBid : a.startingPrice));
+                long remaining = a.endTime - System.currentTimeMillis();
+                lore.add("Time Remaining: " + formatDuration(remaining));
+            } else {
+                lore.add("Final Price: $" + (a.currentBid > 0 ? a.currentBid : a.startingPrice));
+                String status = a.currentBidder != null ? "Sold/Won" : "Expired/No bids";
+                lore.add("Status: " + status);
+            }
+            String role = a.seller.equals(target) ? "Seller" : "Bidder";
+            lore.add((target.equals(p.getUniqueId()) ? "Your Role: " : "Role: ") + role);
+            if (role.equals("Bidder")) {
+                lore.add("Seller: " + getPlayerName(a.seller));
+            }
+            if (a.currentBidder != null) {
+                lore.add("Buyer: " + getPlayerName(a.currentBidder));
+            }
+            meta.setLore(lore);
+            String itemName = meta.hasDisplayName() ? meta.getDisplayName() : formatMaterialName(item.getType());
+            ChatColor color = isActive ? ChatColor.GREEN : ChatColor.YELLOW;
+            meta.setDisplayName(color + itemName);
+            item.setItemMeta(meta);
+            inv.setItem(row * 9 + col, item);
+        }
+
+        if (page > 0) {
+            ItemStack prevBtn = new ItemStack(Material.ARROW);
+            ItemMeta prevMeta = prevBtn.getItemMeta();
+            prevMeta.setDisplayName(ChatColor.YELLOW + "Previous Page");
+            prevBtn.setItemMeta(prevMeta);
+            inv.setItem(45, prevBtn);
+        }
+        if (endIndex < history.size()) {
+            ItemStack nextBtn = new ItemStack(Material.ARROW);
+            ItemMeta nextMeta = nextBtn.getItemMeta();
+            nextMeta.setDisplayName(ChatColor.YELLOW + "Next Page");
+            nextBtn.setItemMeta(nextMeta);
+            inv.setItem(53, nextBtn);
+        }
+
+        ItemStack backBtn = new ItemStack(Material.BARRIER);
+        ItemMeta backMeta = backBtn.getItemMeta();
+        backMeta.setDisplayName(ChatColor.RED + "Back to History");
+        backBtn.setItemMeta(backMeta);
+        inv.setItem(49, backBtn);
+
+        p.openInventory(inv);
+    }
+
+    public static void openUndoGui(Player p, AuctionManager manager) {
+        if (!p.hasPermission("lost.auction")) {
+            p.sendMessage("You do not have permission to use the auction house.");
+            return;
+        }
+        AuctionManager.PurchaseRecord pr = manager.getPurchaseForUndo(p.getUniqueId());
+        if (pr == null) {
+            p.sendMessage("[Auction] No recent purchase to undo.");
+            return;
+        }
+        Inventory inv = Bukkit.createInventory(new AuctionHolder(), 9, "Undo Purchase");
+        ItemStack border = makeBorder();
+        for (int i = 0; i < 9; i++) {
+            inv.setItem(i, border.clone());
+        }
+        ItemStack display = ItemStack.deserializeBytes(pr.itemBytes).clone();
+        ItemMeta displayMeta = display.getItemMeta();
+        List<String> dlore = new ArrayList<>();
+        dlore.add(ChatColor.GRAY + "Place this item in the center slot");
+        dlore.add(ChatColor.GRAY + "Price: $" + String.format("%.2f", pr.price));
+        if (displayMeta != null) {
+            dlore.addAll(0, displayMeta.hasLore() ? displayMeta.getLore() : new ArrayList<>());
+            String dn = displayMeta.hasDisplayName() ? displayMeta.getDisplayName() : formatMaterialName(display.getType());
+            displayMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + dn);
+            displayMeta.setLore(dlore);
+            display.setItemMeta(displayMeta);
+        }
+        inv.setItem(2, display);
+
+        ItemStack confirmBtn = new ItemStack(Material.GREEN_STAINED_GLASS_PANE);
+        ItemMeta confirmMeta = confirmBtn.getItemMeta();
+        confirmMeta.setDisplayName(ChatColor.GREEN + "Confirm Undo");
+        confirmBtn.setItemMeta(confirmMeta);
+        inv.setItem(8, confirmBtn);
+
+        pendingUndo.put(p.getUniqueId(), pr.auctionId);
+        p.openInventory(inv);
+    }
+
+    @EventHandler
+    public void onInventoryClickUndo(InventoryClickEvent e) {
+        if (!(e.getInventory().getHolder() instanceof AuctionHolder)) return;
+        if (!e.getView().getTitle().equals("Undo Purchase")) return;
+        if (!(e.getWhoClicked() instanceof Player)) return;
+        e.setCancelled(true);
+        Player p = (Player) e.getWhoClicked();
+        if (e.getSlot() != 8) return;
+
+        String auctionId = pendingUndo.remove(p.getUniqueId());
+        if (auctionId == null) return;
+
+        ItemStack placed = e.getInventory().getItem(4);
+        if (placed == null || placed.getType().isAir()) {
+            pendingUndo.put(p.getUniqueId(), auctionId);
+            p.sendMessage("[Auction] Place the item in the center slot first.");
+            return;
+        }
+
+        ItemStack returned = placed.clone();
+        e.getInventory().setItem(4, null);
+
+        if (manager.processUndoItem(p, auctionId, returned)) {
+            e.getInventory().setItem(2, null);
+            e.getInventory().setItem(8, null);
+            p.closeInventory();
+        } else {
+            e.getInventory().setItem(4, returned);
+            pendingUndo.put(p.getUniqueId(), auctionId);
+        }
+    }
+
+    @EventHandler
+    public void onInventoryCloseUndo(InventoryCloseEvent e) {
+        if (!e.getView().getTitle().equals("Undo Purchase")) return;
+        if (!(e.getPlayer() instanceof Player)) return;
+        Player p = (Player) e.getPlayer();
+        String auctionId = pendingUndo.remove(p.getUniqueId());
+        if (auctionId == null) return;
+        ItemStack placed = e.getInventory().getItem(4);
+        if (placed != null && !placed.getType().isAir()) {
+            java.util.Map<Integer, ItemStack> overflow = p.getInventory().addItem(placed);
+            for (ItemStack drop : overflow.values()) {
+                p.getWorld().dropItemNaturally(p.getLocation(), drop);
+            }
+        }
     }
 
     @EventHandler
@@ -2258,7 +2593,8 @@ public class AuctionGUI implements Listener {
         String title = e.getView().getTitle();
         boolean isAllHistory = title.startsWith("All Auction History");
         boolean isPlayerHistory = !isAllHistory && title.contains("Auction History");
-        if (!isPlayerHistory && !isAllHistory) return;
+        boolean isHistorySearch = !isAllHistory && title.contains("History Search:");
+        if (!isPlayerHistory && !isAllHistory && !isHistorySearch) return;
         e.setCancelled(true);
         if (!(e.getWhoClicked() instanceof Player)) return;
         Player p = (Player) e.getWhoClicked();
@@ -2277,8 +2613,32 @@ public class AuctionGUI implements Listener {
             } catch (NumberFormatException ignored) {}
         }
 
+        if (isHistorySearch) {
+            int termStart = title.indexOf("'");
+            int termEnd = termStart >= 0 ? title.indexOf("'", termStart + 1) : -1;
+            if (termStart < 0 || termEnd < 0) return;
+            String searchTerm = title.substring(termStart + 1, termEnd);
+
+            if (displayName.equals(ChatColor.RED + "Back to History")) {
+                UUID target = viewingHistoryTarget.get(p.getUniqueId());
+                openHistory(p, manager, 0, target);
+                return;
+            } else if (displayName.equals(ChatColor.YELLOW + "Previous Page")) {
+                openHistorySearch(p, manager, searchTerm, Math.max(0, currentPage - 1));
+                return;
+            } else if (displayName.equals(ChatColor.YELLOW + "Next Page")) {
+                openHistorySearch(p, manager, searchTerm, currentPage + 1);
+                return;
+            }
+            return;
+        }
+
         if (displayName.equals(ChatColor.RED + "Back to Auction House")) {
             openMain(p, manager);
+        } else if (displayName.equals(ChatColor.YELLOW + "Search History")) {
+            if (isPlayerHistory) {
+                AnvilListener.promptHistorySearchInChat(p, manager);
+            }
         } else if (displayName.equals(ChatColor.YELLOW + "Previous Page")) {
             if (isPlayerHistory) {
                 UUID target = viewingHistoryTarget.get(p.getUniqueId());
@@ -2313,16 +2673,15 @@ public class AuctionGUI implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent e) {
         Player p = e.getPlayer();
-        ItemStack item = pendingSelection.remove(p);
-        if (item != null) {
-            manager.addPendingDelivery(p.getUniqueId(), AuctionManager.stripCategoryLore(item));
-        }
+        pendingSelection.remove(p);
         pendingCategory.remove(p);
         pendingListingType.remove(p);
         pendingPrice.remove(p);
+        pendingAmount.remove(p);
         adminSelectedAuction.remove(p);
         priceFilterMin.remove(p);
         priceFilterMax.remove(p);
         viewingHistoryTarget.remove(p.getUniqueId());
+        pendingUndo.remove(p.getUniqueId());
     }
 }

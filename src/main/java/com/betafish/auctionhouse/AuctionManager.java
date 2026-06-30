@@ -10,7 +10,9 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.time.Instant;
 import java.util.*;
+import java.util.Base64;
 
 public class AuctionManager {
     private final JavaPlugin plugin;
@@ -19,6 +21,8 @@ public class AuctionManager {
     private final Map<UUID, List<ItemStack>> pendingDeliveries = new HashMap<>();
     private final Map<UUID, List<ItemStack>> reclaimableItems = new HashMap<>();
     private final Set<UUID> autoClaimPlayers = new HashSet<>();
+    private final Map<String, PurchaseRecord> recentPurchases = new LinkedHashMap<>();
+    private final Set<UUID> newListingNotifications = new HashSet<>();
 
     private final File dataFile;
     private final File historyFile;
@@ -34,6 +38,47 @@ public class AuctionManager {
         this.dataFile = new File(plugin.getDataFolder(), "data.yml");
         this.historyFile = new File(plugin.getDataFolder(), "history.yml");
         this.categoriesFile = new File(plugin.getDataFolder(), "categories.yml");
+    }
+
+    static class PurchaseRecord {
+        final String auctionId;
+        final UUID buyer;
+        final UUID seller;
+        final byte[] itemBytes;
+        final double price;
+        long timestamp;
+
+        PurchaseRecord(String auctionId, UUID buyer, UUID seller, ItemStack item, double price) {
+            this.auctionId = auctionId;
+            this.buyer = buyer;
+            this.seller = seller;
+            this.itemBytes = item.serializeAsBytes();
+            this.price = price;
+            this.timestamp = System.currentTimeMillis();
+        }
+
+        Map<String, Object> serialize() {
+            Map<String, Object> m = new HashMap<>();
+            m.put("auctionId", auctionId);
+            m.put("buyer", buyer.toString());
+            m.put("seller", seller.toString());
+            m.put("itemBytes", Base64.getEncoder().encodeToString(itemBytes));
+            m.put("price", price);
+            m.put("timestamp", timestamp);
+            return m;
+        }
+
+        static PurchaseRecord deserialize(Map<String, Object> m) {
+            String auctionId = (String) m.get("auctionId");
+            UUID buyer = UUID.fromString((String) m.get("buyer"));
+            UUID seller = UUID.fromString((String) m.get("seller"));
+            byte[] itemBytes = Base64.getDecoder().decode((String) m.get("itemBytes"));
+            ItemStack item = ItemStack.deserializeBytes(itemBytes);
+            double price = ((Number) m.get("price")).doubleValue();
+            PurchaseRecord r = new PurchaseRecord(auctionId, buyer, seller, item, price);
+            if (m.containsKey("timestamp")) r.timestamp = ((Number) m.get("timestamp")).longValue();
+            return r;
+        }
     }
 
     public JavaPlugin getPlugin() { return this.plugin; }
@@ -86,6 +131,23 @@ public class AuctionManager {
             }
         }
 
+        if (data.isConfigurationSection("purchases")) {
+            for (String key : data.getConfigurationSection("purchases").getKeys(false)) {
+                Map<String, Object> pm = data.getConfigurationSection("purchases." + key).getValues(true);
+                PurchaseRecord pr = PurchaseRecord.deserialize(pm);
+                long timeout = plugin.getConfig().getLong("undo-purchase-time-minutes", 10) * 60L * 1000L;
+                if (System.currentTimeMillis() - pr.timestamp < timeout) {
+                    recentPurchases.put(pr.auctionId, pr);
+                }
+            }
+        }
+
+        if (data.isList("new-listing-notifications")) {
+            for (String s : data.getStringList("new-listing-notifications")) {
+                try { newListingNotifications.add(UUID.fromString(s)); } catch (IllegalArgumentException ignored) {}
+            }
+        }
+
         // Migrate old pendingDeliveries to reclaimableItems for players without auto-claim
         if (!pendingDeliveries.isEmpty()) {
             List<UUID> toRemove = new ArrayList<>();
@@ -128,6 +190,15 @@ public class AuctionManager {
             for (UUID uuid : autoClaimPlayers) autoClaimList.add(uuid.toString());
             data.set("auto-claim", autoClaimList);
 
+            data.set("purchases", null);
+            for (PurchaseRecord pr : recentPurchases.values()) {
+                data.set("purchases." + pr.auctionId, pr.serialize());
+            }
+
+            List<String> notifyList = new ArrayList<>();
+            for (UUID uuid : newListingNotifications) notifyList.add(uuid.toString());
+            data.set("new-listing-notifications", notifyList);
+
             data.save(dataFile);
         } catch (Exception ex) { ex.printStackTrace(); }
     }
@@ -159,7 +230,37 @@ public class AuctionManager {
         auctions.put(id, a);
 
         save();
+        LostAuction.getInstance().logDebug("Auction created: " + id + " by " + getPlayerName(seller) + " (" + item.getType() + " x" + item.getAmount() + ")");
+        notifyNewListing(a);
         return a;
+    }
+
+    private void notifyNewListing(Auction a) {
+        for (UUID uuid : newListingNotifications) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null && p.isOnline() && !uuid.equals(a.seller)) {
+                String itemName = a.item.getItemMeta() != null && a.item.getItemMeta().hasDisplayName()
+                        ? a.item.getItemMeta().getDisplayName()
+                        : formatMaterialName(a.item.getType());
+                p.sendMessage("[Auction] New listing: " + itemName + " (" + (a.type == Auction.Type.FIXED ? "$" + a.startingPrice : "Starting at $" + a.startingPrice) + ") by " + getPlayerName(a.seller));
+            }
+        }
+    }
+
+    public boolean toggleNewListingNotifications(UUID player) {
+        if (newListingNotifications.contains(player)) {
+            newListingNotifications.remove(player);
+            save();
+            return false;
+        } else {
+            newListingNotifications.add(player);
+            save();
+            return true;
+        }
+    }
+
+    public boolean hasNewListingNotifications(UUID player) {
+        return newListingNotifications.contains(player);
     }
 
     public Collection<Auction> listAuctions() { return auctions.values(); }
@@ -189,12 +290,87 @@ public class AuctionManager {
         a.currentBidder = buyer.getUniqueId();
         a.currentBid = price;
 
+        // record purchase for undo feature
+        boolean undoEnabled = plugin.getConfig().getBoolean("undo-purchase-enabled", true);
+        if (undoEnabled) {
+            recentPurchases.put(a.id, new PurchaseRecord(a.id, buyer.getUniqueId(), a.seller, a.item, price));
+        }
+
         // record in history for both
         addToHistory(a.seller, a);
         addToHistory(buyer.getUniqueId(), a);
 
         auctions.remove(a.id);
         save();
+        LostAuction.getInstance().logDebug("Purchase: " + buyer.getName() + " bought " + a.id + " from " + getPlayerName(a.seller) + " for " + price);
+        return true;
+    }
+
+    public PurchaseRecord getPurchaseForUndo(UUID player) {
+        long timeout = plugin.getConfig().getLong("undo-purchase-time-minutes", 10) * 60L * 1000L;
+        long now = System.currentTimeMillis();
+        PurchaseRecord best = null;
+        for (PurchaseRecord pr : recentPurchases.values()) {
+            if (pr.buyer.equals(player) && now - pr.timestamp < timeout) {
+                if (best == null || pr.timestamp > best.timestamp) best = pr;
+            }
+        }
+        return best;
+    }
+
+    public boolean processUndoItem(Player buyer, String auctionId, ItemStack returnedItem) {
+        if (!plugin.getConfig().getBoolean("undo-purchase-enabled", true)) {
+            buyer.sendMessage("[Auction] Undo purchase is disabled on this server.");
+            return false;
+        }
+        PurchaseRecord pr = recentPurchases.get(auctionId);
+        if (pr == null || !pr.buyer.equals(buyer.getUniqueId())) {
+            buyer.sendMessage("[Auction] No recent purchase found to undo.");
+            return false;
+        }
+        long timeout = plugin.getConfig().getLong("undo-purchase-time-minutes", 10) * 60L * 1000L;
+        if (System.currentTimeMillis() - pr.timestamp > timeout) {
+            recentPurchases.remove(auctionId);
+            buyer.sendMessage("[Auction] The undo window has expired for that purchase.");
+            return false;
+        }
+
+        if (returnedItem == null || returnedItem.getType().isAir()) {
+            buyer.sendMessage("[Auction] You must place the item in the GUI to undo.");
+            return false;
+        }
+
+        ItemStack originalItem = ItemStack.deserializeBytes(pr.itemBytes);
+        if (!returnedItem.isSimilar(originalItem) || returnedItem.getAmount() < originalItem.getAmount()) {
+            buyer.sendMessage("[Auction] The item you placed does not match the purchased item.");
+            return false;
+        }
+
+        if (!econ.has(Bukkit.getOfflinePlayer(pr.seller), pr.price)) {
+            buyer.sendMessage("[Auction] The seller no longer has sufficient funds for an undo.");
+            return false;
+        }
+
+        econ.withdrawPlayer(Bukkit.getOfflinePlayer(pr.seller), pr.price);
+        econ.depositPlayer(buyer, pr.price);
+
+        Auction original = new Auction(pr.auctionId, pr.seller, ItemStack.deserializeBytes(pr.itemBytes), Auction.Type.FIXED, pr.price, System.currentTimeMillis() + plugin.getConfig().getLong("default-duration-hours", 24) * 3600L * 1000L);
+        String newId;
+        Random rand = new Random();
+        do { newId = String.format("%04d", rand.nextInt(10000)); } while (auctions.containsKey(newId));
+        original.id = newId;
+        auctions.put(newId, original);
+
+        recentPurchases.remove(auctionId);
+        save();
+        LostAuction.getInstance().logDebug("Undo: " + buyer.getName() + " undid purchase " + auctionId + ", re-listed as " + newId);
+
+        Player seller = Bukkit.getPlayer(pr.seller);
+        if (seller != null && seller.isOnline()) {
+            seller.sendMessage("[Auction] " + buyer.getName() + " undid their purchase of auction " + auctionId + ". The item has been re-listed.");
+        }
+
+        buyer.sendMessage("[Auction] Purchase undone. $" + pr.price + " refunded and item re-listed as auction " + newId + ".");
         return true;
     }
 
@@ -277,6 +453,7 @@ public class AuctionManager {
         for (Auction a : ended) {
             handleEnd(a);
             auctions.remove(a.id);
+            LostAuction.getInstance().logDebug("Auction expired: " + a.id + " (" + a.type + ")");
         }
         if (!ended.isEmpty()) save();
     }
@@ -421,6 +598,23 @@ public class AuctionManager {
         }
     }
 
+    public List<Auction> searchPlayerHistory(UUID playerId, String searchTerm) {
+        List<Auction> all = getPlayerHistory(playerId);
+        if (searchTerm == null || searchTerm.isEmpty()) return all;
+        String lower = searchTerm.toLowerCase();
+        List<Auction> results = new ArrayList<>();
+        for (Auction a : all) {
+            String itemName = a.item.getType().name().toLowerCase();
+            if (a.item.hasItemMeta() && a.item.getItemMeta().hasDisplayName()) {
+                itemName = a.item.getItemMeta().getDisplayName().toLowerCase();
+            }
+            if (itemName.contains(lower)) {
+                results.add(a);
+            }
+        }
+        return results;
+    }
+
     public List<Auction> getAllHistory() {
         synchronized (historyLock) {
             historyData = YamlConfiguration.loadConfiguration(historyFile);
@@ -441,6 +635,23 @@ public class AuctionManager {
     }
 
     public Economy getEconomy() { return econ; }
+
+    public static String getPlayerName(UUID uuid) {
+        String name = Bukkit.getOfflinePlayer(uuid).getName();
+        return name != null ? name : "Unknown";
+    }
+
+    public static String formatMaterialName(org.bukkit.Material material) {
+        String[] words = material.name().split("_");
+        StringBuilder sb = new StringBuilder();
+        for (String word : words) {
+            if (word.isEmpty()) continue;
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(Character.toUpperCase(word.charAt(0)));
+            if (word.length() > 1) sb.append(word.substring(1).toLowerCase());
+        }
+        return sb.toString();
+    }
 
     // Category management methods
     public List<String> getCategoryNames() {
