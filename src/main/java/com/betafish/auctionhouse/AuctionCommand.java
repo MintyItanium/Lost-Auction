@@ -78,14 +78,14 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
                     p.sendMessage(mm.deserialize("<yellow>[Auction] Auto-claim disabled. Expired items go to Unclaimed Items."));
                 }
                 return true;
-            } else if (subcommand.equals("undo")) {
+            } else if (subcommand.equals("undo") || subcommand.equals("refund")) {
                 if (!manager.getPlugin().getConfig().getBoolean("undo-purchase-enabled", true)) {
-                    p.sendMessage(mm.deserialize("<red>[Auction] Undo purchase is disabled on this server."));
+                    p.sendMessage(mm.deserialize("<red>[Auction] Refunds are disabled on this server."));
                     return true;
                 }
                 AuctionManager.PurchaseRecord pr = manager.getPurchaseForUndo(p.getUniqueId());
                 if (pr == null) {
-                    p.sendMessage(mm.deserialize("<yellow>[Auction] You have no recent purchases to undo."));
+                    p.sendMessage(mm.deserialize("<yellow>[Auction] You have no recent purchases to refund."));
                     return true;
                 }
                 AuctionGUI.openUndoGui(p, manager);
@@ -169,6 +169,7 @@ public class AuctionCommand implements CommandExecutor, TabCompleter {
             if ("history".startsWith(partial)) completions.add("history");
             if ("autoclaim".startsWith(partial)) completions.add("autoclaim");
             if ("undo".startsWith(partial)) completions.add("undo");
+            if ("refund".startsWith(partial)) completions.add("refund");
             if ("fullhistory".startsWith(partial) && player.hasPermission("lost.auction.fullhistory")) {
                 completions.add("fullhistory");
             }
