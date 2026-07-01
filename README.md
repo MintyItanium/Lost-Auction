@@ -77,7 +77,7 @@ Place the jar file in "/target" into your server `plugins/` folder, along with V
 
 ## Credits 
 
-Thanks to Caleb Graham and OJcream for assisting on this project, helping develop it, giving advice, and testing it.
+Thanks to Caleb Graham and OJCream for assisting on this project, helping develop it, giving advice, and testing it.
 
 Thanks to OGCraft.org's staff and its community for adopting the plugin so early, and all the valuable feedback and bug reports that have resulted from it.
 
